@@ -5,6 +5,9 @@ fun main() {
         vehicleDataSuite(),
         vehicleDataManagerSuite(),
         connectionManagerSuite(),
+        messageCodecSuite(),
+        mockPhoneCommunicationSuite(),
+        bluetoothPhoneCommunicationSuite(),
     )
 
     var allPassed = true
