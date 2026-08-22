@@ -1,10 +1,13 @@
 package com.dashboard.core.demo
 
+import com.dashboard.core.domain.BlizzerEventType
 import com.dashboard.core.domain.ConnectionState
+import com.dashboard.core.domain.Direction
 import com.dashboard.core.domain.Signal
 import com.dashboard.core.domain.VehicleData
 import com.dashboard.core.hardware.mock.MockBluetoothProvider
 import com.dashboard.core.hardware.mock.MockNfcProvider
+import com.dashboard.core.hardware.mock.MockPhoneCommunication
 import com.dashboard.core.hardware.mock.MockVehicleDataProvider
 import com.dashboard.core.service.ConnectionManager
 import com.dashboard.core.service.VehicleDataManager
@@ -29,31 +32,78 @@ fun main() {
     val bluetoothProvider = MockBluetoothProvider(connectDelayMillis = 300)
     val connectionManager = ConnectionManager(nfcProvider, bluetoothProvider)
 
+    // The phone-communication layer. In the real app this would be a BluetoothPhoneCommunication
+    // wired to the same BluetoothProvider ConnectionManager uses; MockPhoneCommunication is used
+    // directly here as the developer-controls convenience described in the spec. Both implement
+    // the same PhoneCommunication interface, so panels (once built) can't tell the difference.
+    val phoneCommunication = MockPhoneCommunication()
+
     connectionManager.observeState { state ->
         println("\n=== connection state -> $state ===")
     }
     vehicleManager.observe { data -> render(connectionManager.state, data) }
+    phoneCommunication.observeNavigationState { nav ->
+        if (nav.active) {
+            println("  [Maps] ${nav.direction} in ${nav.distanceMeters?.toInt()}m on ${nav.roadName}, ETA ${nav.etaMinutes}min")
+        } else {
+            println("  [Maps] navigation not running")
+        }
+    }
+    phoneCommunication.observeMediaState { media ->
+        if (media.title != null) {
+            println("  [Music] ${media.playbackState}: \"${media.title}\" - ${media.artist}")
+        }
+    }
+    phoneCommunication.observeBlizzerEvents { event ->
+        println("  [BLIZZER OVERLAY] (${event.type}) ${event.message}")
+    }
 
     vehicleManager.start()
     connectionManager.start()
 
     println("Dashboard booting... (Car panel works with no phone at all)")
-    sleep(2000)
+    sleep(1500)
 
     println("\n[dev] simulating driver accelerating to 80 km/h")
     vehicleProvider.setTargetSpeedKmh(80.0)
-    sleep(2000)
+    sleep(1500)
+
+    println("\n[dev] Trigger Blizzer while on Car panel")
+    phoneCommunication.triggerBlizzer("Welcome back!", BlizzerEventType.INFO)
+    sleep(500)
 
     println("\n[dev] Simulate NFC Tap")
     nfcProvider.simulateTap()
-    sleep(1500) // let CONNECTING -> CONNECTED resolve
+    sleep(1000) // let CONNECTING -> CONNECTED resolve
 
-    println("\n[dev] (Maps/Music would now be reachable; built in later steps)")
-    sleep(1500)
+    println("\n[dev] Maps/Music now reachable. Start Navigation")
+    phoneCommunication.startNavigation(roadName = "Ridge Valley Rd", etaMinutes = 9)
+    sleep(500)
+
+    println("\n[dev] Change Direction")
+    phoneCommunication.changeDirection(Direction.TURN_RIGHT, distanceMeters = 150.0)
+    sleep(500)
+
+    println("\n[dev] Start Music")
+    phoneCommunication.startMusic()
+    sleep(500)
+
+    println("\n[dev] Next Song")
+    phoneCommunication.nextSong()
+    sleep(500)
+
+    println("\n[dev] Trigger Blizzer while on Maps/Music")
+    phoneCommunication.triggerBlizzer("Check engine soon", BlizzerEventType.WARNING)
+    sleep(500)
+
+    println("\n[dev] Stop Navigation, Pause Music")
+    phoneCommunication.stopNavigation()
+    phoneCommunication.pauseMusic()
+    sleep(500)
 
     println("\n[dev] Disconnect Phone")
     connectionManager.simulateDisconnect()
-    sleep(1000)
+    sleep(500)
 
     println("\nBack to Car-only mode. Shutting down demo.")
     vehicleManager.stop()

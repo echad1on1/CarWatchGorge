@@ -46,7 +46,9 @@ automotive-dashboard/
       hardware/mock/    Mock*/Simulated implementations of every interface above
       service/          ConnectionManager (state machine), VehicleDataManager (Car panel
                         data source) — more managers land here as each subsystem is built
-      communication/    (empty for now — filled in during the communication-protocol step)
+      communication/    ProtocolMessage (wire contract), MessageCodec (encode/decode),
+                        DomainMapping (wire <-> domain conversions), BluetoothPhoneCommunication
+                        (real PhoneCommunication impl, works over any BluetoothProvider)
       demo/             ConsoleDemo — text-mode stand-in for the real UI, used to visually
                         verify behavior until the Wear OS/Compose UI exists
     src/test/kotlin/com/dashboard/core/
@@ -101,28 +103,37 @@ guarantee), `VehicleDataManager` (caching/replay for late subscribers), and `Con
 - Car panel data layer (`VehicleDataManager` + `MockVehicleDataProvider`, a realistic vehicle
   simulator with gradually-changing speed/RPM/temp/load and a toggleable "this signal isn't
   available on this vehicle" case) — fully implemented and tested
-- Console demo proving the CAR_ONLY → NFC tap → CONNECTED → disconnect → CAR_ONLY journey
-- Minimal mocks for NFC, Bluetooth, audio, power and phone-communication — enough to compile
-  and drive the connection state machine; their *real* dev-control behavior (Start Navigation,
-  Trigger Blizzer, etc.) is filled in during their dedicated steps below
+- Console demo proving the full simulated journey: Car-only with live vehicle data → Blizzer
+  overlay on Car → NFC tap → CONNECTED → Start Navigation → Change Direction → Start Music →
+  Next Song → Blizzer overlay on Maps/Music → Stop Navigation/Pause Music → Disconnect → Car-only
+- **Communication Layer** (this step): `ProtocolMessage` (wire message types for navigation,
+  media, media commands, Blizzer events, connection state, settings), `MessageCodec`
+  (dependency-free encode/decode — no JSON/protobuf library is reachable from this sandbox, see
+  below), `DomainMapping` (wire ↔ domain conversions), and `BluetoothPhoneCommunication` — the
+  real `PhoneCommunication` implementation, which works over *any* `BluetoothProvider`. Proven
+  with `LoopbackBluetoothProvider` tests that actually push encoded bytes across two separate
+  endpoints and decode them on the other side — not just in-process calls.
+- **`MockPhoneCommunication`** now has full developer controls (`startNavigation`,
+  `stopNavigation`, `changeDirection`, `decreaseDistance`, `startMusic`, `pauseMusic`,
+  `nextSong`, `previousSong`, `triggerBlizzer`) and internally round-trips every update through
+  the same `MessageCodec` the real implementation uses, so a codec bug can't hide behind the mock.
+- Minimal mocks remain for audio and power — filled in during their dedicated steps below.
 
 ## What's next (not yet built)
 
-1. **Maps panel** — `NavigationState` is defined; `NavigationAudioManager`, a navigation
-   simulator, and the Maps UI still need building.
-2. **Music panel** — `MediaState`/`MediaCommand` are defined; `MediaManager`, a simulated media
-   source, and the Music UI still need building.
-3. **Blizzer global overlay** — `BlizzerEvent` is defined; `BlizzerManager` and the
-   overlay-over-any-screen behavior still need building.
-4. **Communication protocol** — `PhoneCommunication` interface exists; the actual message
-   encode/decode layer over `BluetoothProvider`, plus a `MockPhoneCommunication` that generates
-   test traffic, still need building.
-5. **Full developer control panel** (Start Navigation, Trigger Blizzer, etc.) once 1–4 exist.
-6. **Settings/persistence**, **PowerManager** wiring, and the **end-to-end test** for the full
+1. **Maps panel** — `NavigationState` and the developer controls to drive it exist; the
+   `NavigationAudioManager` and the actual Maps UI still need building.
+2. **Music panel** — `MediaState`/`MediaCommand` and the developer controls to drive it exist;
+   `MediaManager` (a thin wrapper matching the `VehicleDataManager` pattern) and the Music UI
+   still need building.
+3. **Blizzer global overlay** — `BlizzerEvent` and the developer control to trigger it exist;
+   `BlizzerManager` and the actual overlay-over-any-screen UI behavior still need building.
+4. **Full developer control panel UI** exposing everything already wired in `MockPhoneCommunication`.
+5. **Settings/persistence**, **PowerManager** wiring, and the **end-to-end test** for the full
    user journey.
-7. **Real Android/Wear OS investigation** — what MediaSession/MediaController, NFC, and
+6. **Real Android/Wear OS investigation** — what MediaSession/MediaController, NFC, and
    background access Android actually permits, documented in `docs/`.
-8. **Wear OS Compose UI** (`wearos-app/`), built in Android Studio against the now-stable
+7. **Wear OS Compose UI** (`wearos-app/`), built in Android Studio against the now-stable
    `core` service layer.
 
 Nothing above requires rewriting anything already built — each step adds a manager/mock behind
