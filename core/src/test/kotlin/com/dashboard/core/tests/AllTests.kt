@@ -8,6 +8,13 @@ fun main() {
         messageCodecSuite(),
         mockPhoneCommunicationSuite(),
         bluetoothPhoneCommunicationSuite(),
+        navigationManagerSuite(),
+        navigationAudioManagerSuite(),
+        mediaManagerSuite(),
+        blizzerManagerSuite(),
+        settingsManagerSuite(),
+        powerManagerSuite(),
+        endToEndJourneySuite(),
     )
 
     var allPassed = true

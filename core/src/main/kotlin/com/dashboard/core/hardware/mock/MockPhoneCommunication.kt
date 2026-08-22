@@ -116,13 +116,28 @@ class MockPhoneCommunication : PhoneCommunication {
         setMedia(songLibrary[songIndex].copy(playbackState = PlaybackState.PLAYING))
     }
 
-    fun triggerBlizzer(message: String, type: BlizzerEventType = BlizzerEventType.INFO) {
+    fun triggerBlizzer(message: String, type: BlizzerEventType = BlizzerEventType.INFO): String {
+        val id = "blizzer-${System.currentTimeMillis()}"
         val event = BlizzerEvent(
-            id = "blizzer-${System.currentTimeMillis()}",
+            id = id,
             type = type,
             message = message,
             timestampMillis = System.currentTimeMillis(),
             active = true,
+        )
+        val decoded = roundTrip(event.toProtocol()) as ProtocolMessage.BlizzerTrigger
+        blizzerEmitter.emit(decoded.toDomain())
+        return id
+    }
+
+    /** Developer control: signal that a Blizzer event has finished, mirroring stopNavigation(). */
+    fun dismissBlizzer(id: String, message: String = "") {
+        val event = BlizzerEvent(
+            id = id,
+            type = BlizzerEventType.INFO,
+            message = message,
+            timestampMillis = System.currentTimeMillis(),
+            active = false,
         )
         val decoded = roundTrip(event.toProtocol()) as ProtocolMessage.BlizzerTrigger
         blizzerEmitter.emit(decoded.toDomain())

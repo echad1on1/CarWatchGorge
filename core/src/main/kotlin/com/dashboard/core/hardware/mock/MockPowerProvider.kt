@@ -14,8 +14,13 @@ class MockPowerProvider(initial: PowerState = PowerState.ACTIVE) : PowerProvider
     private val emitter = Emitter<PowerState>()
     private var state = initial
 
-    override fun observePowerState(listener: (PowerState) -> Unit): Subscription =
-        emitter.subscribe(listener)
+    override fun observePowerState(listener: (PowerState) -> Unit): Subscription {
+        // Deliver the current state immediately, matching the "latest snapshot to late
+        // subscribers" convention used by every other manager in this codebase
+        // (VehicleDataManager, NavigationManager, MediaManager, BlizzerManager, ...).
+        listener(state)
+        return emitter.subscribe(listener)
+    }
 
     override fun currentState(): PowerState = state
 
