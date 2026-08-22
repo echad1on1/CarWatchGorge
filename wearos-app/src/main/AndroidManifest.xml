@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Declares this as a Wear OS app and that it should run standalone (not require the
+         phone's Wear OS companion app to be installed to function at all, since this dashboard's
+         Car panel must work with no phone present). -->
+    <uses-feature android:name="android.hardware.type.watch" />
+    <meta-data
+        android:name="com.google.android.wearable.standalone"
+        android:value="true" />
+
+    <!--
+        Permissions below are commented out deliberately. Per the project spec, real hardware
+        (NFC, Bluetooth/Data Layer, vehicle interface) is NOT implemented yet — only mocks are
+        wired up in this module today (see MainActivity.kt). Uncomment each block only when its
+        corresponding real hardware.* implementation is actually built, and re-check
+        docs/android-integration-research.md at that point, since some of this (especially the
+        Bluetooth transport choice) depends on which platform is confirmed as the real target.
+
+    <uses-permission android:name="android.permission.NFC" />
+
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    -->
+
+    <application
+        android:allowBackup="false"
+        android:label="Dashboard"
+        android:theme="@android:style/Theme.DeviceDefault">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.DeviceDefault">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+    </application>
+</manifest>
