@@ -14,7 +14,7 @@ import com.dashboard.core.domain.BlizzerEvent
 import com.dashboard.core.domain.BlizzerEventType
 
 /**
- * Renders above whatever [Panel] [DashboardApp] currently has selected. Deliberately has no
+ * Renders above whichever page [DashboardApp] currently has selected. Deliberately has no
  * parameter for "which panel is underneath" — Blizzer doesn't need to know, and that's the
  * entire point: the same overlay works identically over Car, Maps, or Music because it never
  * looks at what it's covering.

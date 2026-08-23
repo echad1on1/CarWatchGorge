@@ -81,6 +81,12 @@ a mechanical rename, not a rewrite.
 
 ## How to run
 
+**Want to test the whole app on a Wear OS emulator with zero physical hardware and zero paired
+phone? See [`TESTING.md`](TESTING.md)** — it's a step-by-step walkthrough of the entire spec'd
+user journey, using the real Compose UI, with a checklist you can follow directly on an emulator.
+
+The quick text-console version (no Android needed at all):
+
 ```
 tools/run_demo.sh
 ```

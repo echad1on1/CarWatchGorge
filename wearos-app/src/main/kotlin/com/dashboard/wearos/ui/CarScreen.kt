@@ -1,8 +1,5 @@
-@file:OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
-
 package com.dashboard.wearos.ui
 
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -18,6 +15,8 @@ import com.dashboard.core.domain.VehicleData
 /**
  * Always available, even before a phone is connected. Renders straight from [VehicleData] —
  * never touches [com.dashboard.core.hardware.VehicleDataProvider] or any hardware directly.
+ * Page 0 in [com.dashboard.wearos.DashboardApp]'s pager; swiping to Maps/Music (once connected)
+ * and reaching developer controls are both handled there, not in this screen.
  *
  * Per the spec's car-optimized UI guidance: large text, minimal chrome, the most important
  * values (speed, RPM, gear) get priority placement. [VehicleFieldRow] renders "—" for any
@@ -28,17 +27,14 @@ import com.dashboard.core.domain.VehicleData
 fun CarScreen(
     vehicleData: VehicleData,
     connectionState: ConnectionState,
-    onSwipeNext: () -> Unit,
-    onOpenDevControls: () -> Unit,
 ) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(12.dp)
-            .combinedClickable(onClick = onSwipeNext, onLongClick = onOpenDevControls),
+            .padding(12.dp),
         verticalArrangement = Arrangement.Center,
     ) {
-        VehicleFieldRow(label = "Speed", signal = vehicleData.speedKmh, unit = "km/h", emphasized = true)
+        VehicleFieldRow(label = "Speed", signal = vehicleData.speedKmh, unit = "km/h")
         VehicleFieldRow(label = "RPM", signal = vehicleData.rpm, unit = "")
         VehicleFieldRow(label = "Gear", signal = vehicleData.gear, unit = "")
         VehicleFieldRow(label = "Coolant", signal = vehicleData.coolantTempCelsius, unit = "°C")
@@ -47,17 +43,11 @@ fun CarScreen(
         if (connectionState != ConnectionState.CONNECTED) {
             Text("No phone connected — tap to link")
         }
-
-        // TODO: replace with a real swipe gesture (androidx.wear.compose.foundation
-        // SwipeToDismissBox / HorizontalPager) once this is verified in Android Studio.
-        // These text affordances exist so the panel-switching logic in DashboardApp is
-        // reachable and demoable even before that polish pass.
-        Text("swipe → Maps", modifier = Modifier.padding(top = 8.dp))
     }
 }
 
 @Composable
-private fun <T> VehicleFieldRow(label: String, signal: Signal<T>, unit: String, emphasized: Boolean = false) {
+private fun <T> VehicleFieldRow(label: String, signal: Signal<T>, unit: String) {
     val text = when (signal) {
         is Signal.Available -> "$label: ${signal.value}$unit"
         Signal.Unavailable -> "$label: —" // never fabricate a value the vehicle doesn't expose

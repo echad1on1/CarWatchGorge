@@ -27,6 +27,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true // needed for BuildConfig.DEBUG, used to gate the dev-controls entry point
     }
 
     compileOptions {

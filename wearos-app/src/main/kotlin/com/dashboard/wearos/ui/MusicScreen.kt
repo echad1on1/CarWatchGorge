@@ -1,6 +1,5 @@
 package com.dashboard.wearos.ui
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -17,7 +16,8 @@ import com.dashboard.core.domain.PlaybackState
 /**
  * Displays whatever [MediaState] the phone reports and turns taps into
  * [com.dashboard.core.service.MediaManager] commands. No dependency on any specific music app —
- * `title`/`artist`/`playbackState` are all this screen ever looks at.
+ * `title`/`artist`/`playbackState` are all this screen ever looks at. Page 2 in
+ * [com.dashboard.wearos.DashboardApp]'s pager, only reachable once connected.
  */
 @Composable
 fun MusicScreen(
@@ -26,7 +26,6 @@ fun MusicScreen(
     onPause: () -> Unit,
     onNext: () -> Unit,
     onPrevious: () -> Unit,
-    onSwipePrevious: () -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -50,6 +49,5 @@ fun MusicScreen(
                 Button(onClick = onNext) { Text("⏭") }
             }
         }
-        Text("← Maps", modifier = Modifier.padding(top = 8.dp).clickable(onClick = onSwipePrevious))
     }
 }

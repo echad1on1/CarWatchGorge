@@ -1,8 +1,5 @@
-@file:OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
-
 package com.dashboard.wearos.ui
 
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -19,19 +16,15 @@ import com.dashboard.core.domain.NavigationState
 /**
  * Only ever renders what [NavigationState] says — no destination search, no route calculation,
  * no knowledge of how navigation data got here. When `active == false`, explicitly shows
- * "navigation not running" per spec, never stale data from a previous session.
+ * "navigation not running" per spec, never stale data from a previous session. Page 1 in
+ * [com.dashboard.wearos.DashboardApp]'s pager, only reachable once connected.
  */
 @Composable
-fun MapsScreen(
-    navigationState: NavigationState,
-    onSwipePrevious: () -> Unit,
-    onSwipeNext: () -> Unit,
-) {
+fun MapsScreen(navigationState: NavigationState) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(12.dp)
-            .combinedClickable(onClick = onSwipeNext, onLongClick = onSwipePrevious),
+            .padding(12.dp),
         verticalArrangement = Arrangement.Center,
     ) {
         if (!navigationState.active) {
@@ -42,7 +35,6 @@ fun MapsScreen(
             navigationState.roadName?.let { Text(it) }
             navigationState.etaMinutes?.let { Text("ETA ${it} min") }
         }
-        Text("← Car   Music →", modifier = Modifier.padding(top = 8.dp))
     }
 }
 
