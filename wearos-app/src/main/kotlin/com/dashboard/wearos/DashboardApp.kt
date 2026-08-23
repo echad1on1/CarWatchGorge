@@ -109,11 +109,13 @@ fun DashboardApp(
             }
 
             if (BuildConfig.DEBUG) {
+                // TopCenter, not TopEnd: a round watch bezel clips corners far more aggressively
+                // than the top-center.
                 IconButton(
                     onClick = { showDevControls = true },
                     modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(4.dp),
+                        .align(Alignment.TopCenter)
+                        .padding(top = 16.dp),
                 ) {
                     Text("⚙")
                 }

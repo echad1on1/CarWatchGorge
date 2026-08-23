@@ -33,10 +33,11 @@ fun MusicScreen(
             .padding(12.dp),
         verticalArrangement = Arrangement.Center,
     ) {
-        if (mediaState.title == null) {
+        val title = mediaState.title // local val avoids the cross-module smart-cast restriction below
+        if (title == null) {
             Text("Nothing playing")
         } else {
-            Text(mediaState.title)
+            Text(title)
             mediaState.artist?.let { Text(it) }
 
             Row {

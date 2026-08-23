@@ -1,17 +1,18 @@
 #!/usr/bin/env bash
-# Compiles core/ and runs the console demo (Car panel + connection state machine).
-# Requires: kotlinc on PATH (or set KOTLINC_HOME below), java on PATH.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-KOTLINC="${KOTLINC_HOME:-}/bin/kotlinc"
-if ! command -v "$KOTLINC" >/dev/null 2>&1; then
-  KOTLINC="kotlinc" # fall back to PATH
+if ! command -v kotlinc >/dev/null 2>&1; then
+  echo "error: kotlinc not found on PATH." >&2
+  echo "Install it, e.g.: brew install kotlin   (or)   sdk install kotlin" >&2
+  exit 1
+fi
+if ! command -v kotlin >/dev/null 2>&1; then
+  echo "error: kotlin (the runner, distinct from kotlinc the compiler) not found on PATH." >&2
+  echo "It should have installed alongside kotlinc — check your Kotlin installation." >&2
+  exit 1
 fi
 
-STDLIB="${KOTLINC_HOME:-}/lib/kotlin-stdlib.jar"
-
 mkdir -p build/classes/main
-"$KOTLINC" core/src/main/kotlin -d build/classes/main
-
-java -cp "build/classes/main:${STDLIB}" com.dashboard.core.demo.ConsoleDemoKt
+kotlinc core/src/main/kotlin -d build/classes/main
+kotlin -cp build/classes/main com.dashboard.core.demo.ConsoleDemoKt
