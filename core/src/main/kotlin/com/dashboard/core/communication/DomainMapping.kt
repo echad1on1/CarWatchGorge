@@ -60,6 +60,7 @@ fun BlizzerEvent.toProtocol() = ProtocolMessage.BlizzerTrigger(
     message = message,
     timestampMillis = timestampMillis,
     active = active,
+    distanceMeters = distanceMeters,
 )
 
 fun ProtocolMessage.BlizzerTrigger.toDomain() = BlizzerEvent(
@@ -68,6 +69,7 @@ fun ProtocolMessage.BlizzerTrigger.toDomain() = BlizzerEvent(
     message = message,
     timestampMillis = timestampMillis,
     active = active,
+    distanceMeters = distanceMeters,
 )
 
 fun ConnectionState.toProtocol() = ProtocolMessage.ConnectionUpdate(state = name)

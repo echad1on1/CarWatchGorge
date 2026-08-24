@@ -109,11 +109,14 @@ fun DashboardApp(
             }
 
             if (BuildConfig.DEBUG) {
+                // TopCenter, not TopEnd: a round watch bezel clips corners far more aggressively
+                // than the top-center — a button placed in a corner (as a first pass of this
+                // screen did) can end up unreachable/invisible depending on the exact device shape.
                 IconButton(
                     onClick = { showDevControls = true },
                     modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(4.dp),
+                        .align(Alignment.TopCenter)
+                        .padding(top = 16.dp),
                 ) {
                     Text("⚙")
                 }

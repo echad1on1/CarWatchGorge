@@ -4,8 +4,15 @@ package com.dashboard.core.domain
 enum class BlizzerEventType { INFO, WARNING, ANIMATION, ALERT }
 
 /**
- * A single Blizzer interruption. Blizzer is not a panel — it's a global overlay that can
- * appear above Car, Maps or Music and must return the user to whatever they were viewing.
+ * A single Blizzer interruption. Blizzer is a speed-camera/road-hazard proximity alert (like
+ * the real "Blitzer" phone app it's modeled on) — it's a global overlay that can appear above
+ * Car, Maps or Music and must return the user to whatever they were viewing once dismissed.
+ *
+ * The real app beeps as the driver approaches a known camera, typically at decreasing distance
+ * thresholds (e.g. 500m, 200m, 100m). [distanceMeters] carries that thresholds so the UI can
+ * increase visual urgency (faster blinking) as the distance shrinks, and so an audio manager can
+ * fire a beep on each new threshold — see [com.dashboard.core.service.BlizzerAudioManager].
+ * `null` means this event isn't distance-based (a generic info/animation event).
  */
 data class BlizzerEvent(
     val id: String,
@@ -13,4 +20,5 @@ data class BlizzerEvent(
     val message: String,
     val timestampMillis: Long,
     val active: Boolean = true,
+    val distanceMeters: Int? = null,
 )

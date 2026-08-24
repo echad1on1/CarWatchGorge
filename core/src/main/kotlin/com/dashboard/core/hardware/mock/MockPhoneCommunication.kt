@@ -43,6 +43,7 @@ class MockPhoneCommunication : PhoneCommunication {
         MediaState(title = "Low Beam", artist = "Kepler Freeway", album = "Ignition", durationMillis = 231_000),
     )
     private var songIndex = 0
+    private var currentBlizzerId: String? = null
 
     override fun observeNavigationState(listener: (NavigationState) -> Unit): Subscription {
         listener(currentNavigation)
@@ -84,6 +85,33 @@ class MockPhoneCommunication : PhoneCommunication {
 
     fun stopNavigation() {
         setNavigation(NavigationState.INACTIVE)
+    }
+
+    /**
+     * The real-world entry point this is all built for: feed it raw spoken announcement text
+     * (what a phone-side AccessibilityService would capture from Google Maps/Waze — see
+     * docs/android-integration-research.md and [com.dashboard.core.communication.NavigationAnnouncementParser])
+     * and it updates navigation state exactly the way a real announcement would. Distance/road
+     * name fall back to whatever's already known if this particular sentence doesn't mention them
+     * (e.g. "Turn left" alone, with the distance from an earlier "In 200 meters..." still standing).
+     *
+     * Returns false if [rawText] doesn't parse as a navigation announcement at all (no-op).
+     */
+    fun announceNavigation(rawText: String): Boolean {
+        val checkpoint = com.dashboard.core.communication.NavigationAnnouncementParser.parse(rawText) ?: return false
+        val isArrival = checkpoint.direction == Direction.ARRIVED
+        setNavigation(
+            currentNavigation.copy(
+                active = true,
+                direction = checkpoint.direction,
+                distanceMeters = when {
+                    isArrival -> 0.0 // "arrived" shouldn't keep showing a stale prior distance
+                    else -> checkpoint.distanceMeters ?: currentNavigation.distanceMeters
+                },
+                roadName = checkpoint.roadName ?: currentNavigation.roadName,
+            )
+        )
+        return true
     }
 
     fun changeDirection(direction: Direction, distanceMeters: Double, roadName: String? = currentNavigation.roadName) {
@@ -130,8 +158,32 @@ class MockPhoneCommunication : PhoneCommunication {
         return id
     }
 
+    /**
+     * Developer control matching how the real Blizzer app behaves: a camera-proximity beep/alert
+     * at a given distance (e.g. 500, 200, 100 meters — closer = more urgent). Reuses [currentBlizzerId]
+     * so successive calls at shrinking distances update the SAME event rather than stacking new ones,
+     * matching one continuous approach-to-camera experience rather than three separate popups.
+     */
+    fun triggerCameraWarning(distanceMeters: Int): String {
+        val id = currentBlizzerId ?: "blizzer-camera-${System.currentTimeMillis()}"
+        currentBlizzerId = id
+        val type = if (distanceMeters <= 150) BlizzerEventType.ALERT else BlizzerEventType.WARNING
+        val event = BlizzerEvent(
+            id = id,
+            type = type,
+            message = "Speed camera in ${distanceMeters}m",
+            timestampMillis = System.currentTimeMillis(),
+            active = true,
+            distanceMeters = distanceMeters,
+        )
+        val decoded = roundTrip(event.toProtocol()) as ProtocolMessage.BlizzerTrigger
+        blizzerEmitter.emit(decoded.toDomain())
+        return id
+    }
+
     /** Developer control: signal that a Blizzer event has finished, mirroring stopNavigation(). */
     fun dismissBlizzer(id: String, message: String = "") {
+        if (currentBlizzerId == id) currentBlizzerId = null
         val event = BlizzerEvent(
             id = id,
             type = BlizzerEventType.INFO,
@@ -141,6 +193,11 @@ class MockPhoneCommunication : PhoneCommunication {
         )
         val decoded = roundTrip(event.toProtocol()) as ProtocolMessage.BlizzerTrigger
         blizzerEmitter.emit(decoded.toDomain())
+    }
+
+    /** Dismisses whatever camera-proximity event is currently active, if any — no id needed. */
+    fun dismissCameraWarning() {
+        currentBlizzerId?.let { dismissBlizzer(it) }
     }
 
     // ---- Internals ------------------------------------------------------------------------

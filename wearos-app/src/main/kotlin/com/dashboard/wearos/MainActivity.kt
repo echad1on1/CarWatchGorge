@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import com.dashboard.core.domain.PowerState
+import com.dashboard.core.domain.Signal
 import com.dashboard.core.hardware.mock.InMemorySettingsStore
 import com.dashboard.core.hardware.mock.MockAudioOutput
 import com.dashboard.core.hardware.mock.MockBluetoothProvider
@@ -11,6 +12,7 @@ import com.dashboard.core.hardware.mock.MockNfcProvider
 import com.dashboard.core.hardware.mock.MockPhoneCommunication
 import com.dashboard.core.hardware.mock.MockPowerProvider
 import com.dashboard.core.hardware.mock.MockVehicleDataProvider
+import com.dashboard.core.service.BlizzerAudioManager
 import com.dashboard.core.service.BlizzerManager
 import com.dashboard.core.service.ConnectionManager
 import com.dashboard.core.service.DevControlPanel
@@ -52,7 +54,15 @@ class MainActivity : ComponentActivity() {
         val navigationAudioManager = NavigationAudioManager(navigationManager, audioOutput)
         val mediaManager = MediaManager(phoneCommunication)
         val blizzerManager = BlizzerManager(phoneCommunication)
+        val blizzerAudioManager = BlizzerAudioManager(blizzerManager, audioOutput)
         val settingsManager = SettingsManager(settingsStore)
+
+        // Feeds the vehicle's live speed into NavigationManager so distance-to-next-turn counts
+        // down smoothly between announcement checkpoints (see NavigationManager's class doc) —
+        // this is what makes the "watch shows a live countdown, not just discrete jumps" idea real.
+        vehicleManager.observe { data ->
+            (data.speedKmh as? Signal.Available)?.let { navigationManager.onVehicleSpeedTick(it.value) }
+        }
 
         val powerManager = PowerManager(
             provider = powerProvider,
@@ -76,6 +86,7 @@ class MainActivity : ComponentActivity() {
 
         powerManager.start()
         navigationAudioManager.start()
+        blizzerAudioManager.start()
 
         setContent {
             DashboardApp(

@@ -6,7 +6,10 @@
 // Maven repo — see README). They're reasonable as of this writing but should be bumped to
 // whatever Android Studio's project wizard suggests when this is first opened there.
 plugins {
-    id("com.android.application") version "8.7.0" apply false
-    kotlin("android") version "2.0.21" apply false
-    kotlin("jvm") version "2.0.21" apply false
+    id("com.android.application") version "8.9.1" apply false
+    kotlin("android") version "2.1.10" apply false
+    kotlin("jvm") version "2.1.10" apply false
+    // Kotlin 2.0+ split the Compose compiler out into its own Gradle plugin — required
+    // whenever `buildFeatures.compose = true` is set anywhere (wearos-app).
+    id("org.jetbrains.kotlin.plugin.compose") version "2.1.10" apply false
 }

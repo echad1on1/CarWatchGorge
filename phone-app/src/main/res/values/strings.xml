@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Dashboard Companion</string>
+    <string name="accessibility_service_description">
+        Reads spoken turn-by-turn directions from Google Maps or Waze (e.g. "In 200 meters, turn
+        left") so they can be shown on your connected dashboard watch. Only listens while one of
+        those two apps is navigating — it cannot see any other app on your phone.
+    </string>
+</resources>

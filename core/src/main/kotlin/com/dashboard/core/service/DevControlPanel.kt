@@ -39,6 +39,8 @@ class DevControlPanel(
     fun changeDirection(direction: Direction, distanceMeters: Double) =
         phoneCommunication.changeDirection(direction, distanceMeters)
     fun decreaseDistance(byMeters: Double) = phoneCommunication.decreaseDistance(byMeters)
+    /** Simulates the real Maps strategy: feeds raw spoken-announcement text through the parser. */
+    fun announceNavigation(rawText: String): Boolean = phoneCommunication.announceNavigation(rawText)
 
     // Music
     fun startMusic() = phoneCommunication.startMusic()
@@ -49,7 +51,10 @@ class DevControlPanel(
     // Blizzer
     fun triggerBlizzer(message: String, type: BlizzerEventType = BlizzerEventType.INFO): String =
         phoneCommunication.triggerBlizzer(message, type)
+    /** Simulates a camera-proximity beep/alert at the given distance (closer = more urgent). */
+    fun triggerCameraWarning(distanceMeters: Int): String = phoneCommunication.triggerCameraWarning(distanceMeters)
     fun dismissBlizzer(id: String) = phoneCommunication.dismissBlizzer(id)
+    fun dismissCameraWarning() = phoneCommunication.dismissCameraWarning()
 
     // Power
     fun simulatePowerState(state: PowerState) = powerProvider.setState(state)

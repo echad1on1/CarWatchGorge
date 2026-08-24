@@ -67,12 +67,26 @@ fun messageCodecSuite() = TestSuite("MessageCodec").apply {
         val original = ProtocolMessage.BlizzerTrigger(
             id = "blizzer-1",
             type = "WARNING",
-            message = "Low tire pressure",
+            message = "Speed camera in 500m",
             timestampMillis = 999L,
             active = true,
+            distanceMeters = 500,
         )
         val decoded = MessageCodec.decode(MessageCodec.encode(original))
         assertEquals(original, decoded, "BlizzerTrigger should round-trip exactly")
+    }
+
+    test("BlizzerTrigger round-trips with null distanceMeters (non-proximity event)") {
+        val original = ProtocolMessage.BlizzerTrigger(
+            id = "blizzer-2",
+            type = "INFO",
+            message = "Welcome back!",
+            timestampMillis = 999L,
+            active = true,
+            distanceMeters = null,
+        )
+        val decoded = MessageCodec.decode(MessageCodec.encode(original))
+        assertEquals(original, decoded, "BlizzerTrigger with null distanceMeters should round-trip exactly")
     }
 
     test("ConnectionUpdate round-trips") {
