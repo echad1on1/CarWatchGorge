@@ -52,6 +52,7 @@ object MessageCodec {
                 lines += "message=${message.message}"
                 lines += "timestampMillis=${message.timestampMillis}"
                 lines += "active=${message.active}"
+                lines += "distanceMeters=${message.distanceMeters.encodeNullable()}"
             }
             is ProtocolMessage.ConnectionUpdate -> {
                 lines += "ConnectionUpdate"
@@ -100,6 +101,7 @@ object MessageCodec {
                 message = field("message"),
                 timestampMillis = field("timestampMillis").toLong(),
                 active = field("active").toBoolean(),
+                distanceMeters = field("distanceMeters").decodeNullableInt(),
             )
             "ConnectionUpdate" -> ProtocolMessage.ConnectionUpdate(state = field("state"))
             "SettingsUpdate" -> ProtocolMessage.SettingsUpdate(payload = field("payload"))

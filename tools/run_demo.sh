@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+# Compiles core/ and runs the console demo (the full simulated user journey).
+# Requires: kotlinc AND kotlin on PATH (both ship together with any standard Kotlin install —
+# Homebrew's `brew install kotlin`, SDKMAN's `sdk install kotlin`, or the manual download used
+# to build this project originally).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -15,4 +19,7 @@ fi
 
 mkdir -p build/classes/main
 kotlinc core/src/main/kotlin -d build/classes/main
+
+# `kotlin` (not `java`) automatically puts kotlin-stdlib.jar on the classpath for us, so we don't
+# need to locate it manually or set any extra environment variables.
 kotlin -cp build/classes/main com.dashboard.core.demo.ConsoleDemoKt

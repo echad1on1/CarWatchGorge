@@ -40,6 +40,7 @@ sealed class ProtocolMessage {
         val message: String,
         val timestampMillis: Long,
         val active: Boolean,
+        val distanceMeters: Int?,
     ) : ProtocolMessage()
 
     data class ConnectionUpdate(

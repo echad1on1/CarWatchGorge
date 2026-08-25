@@ -43,10 +43,11 @@ scenario of anything researched here.**
   each music app to specifically support this dashboard. `MediaManager`/`MediaState`/`MediaCommand`
   in `core` need no changes for this.
 
-## Navigation (Maps panel)
+## Navigation (Maps panel) — DECIDED: AccessibilityService announcement capture
 
-**🧩 Requires a companion app, and is fundamentally more restricted than Media — there is no
-generic, app-agnostic way to read "whatever navigation app the user has running."**
+**🧩 Requires a companion app. No generic, app-agnostic API exists for reading structured state
+from an arbitrary navigation app — but there IS a viable, official mechanism for the *spoken
+announcement text*, and this project is now built around it.**
 
 - ❌ Unlike media, there is no OS-level session mechanism a third-party app can hook into to read
   live turn-by-turn state from an arbitrary navigation app the user happens to be running.
@@ -54,22 +55,32 @@ generic, app-agnostic way to read "whatever navigation app the user has running.
   in** using the Google Navigation SDK themselves — it's a callback your own embedded nav engine
   receives, not something you can attach to the user's already-installed Google Maps app.
   [Source: Google Developers — Enable turn-by-turn data feed](https://developers.google.com/maps/documentation/navigation/android-sdk/tbt-feed)
-- 🧩 Waze's third-party data sharing (the "Navigation Connect API" / rideshare-style integration)
-  is a formal partner integration for specific approved use cases, not a generic public API any
-  app can subscribe to for a user's ordinary Waze session.
+- 💰 **Cost ruled this out for a sellable product**: both Google's and Mapbox's navigation SDKs
+  bill per active user per month (plus per trip) — an ongoing cost with no matching recurring
+  revenue for hardware sold once. Mapbox additionally requires a separate Commercial Application
+  License specifically for vehicle use. Not viable unless the product itself becomes a
+  subscription.
+- ✅ **What was chosen instead: `AccessibilityService` announcement capture.** Navigation apps
+  emit spoken announcement text ("In 200 meters, turn left") for accessibility purposes (the same
+  text a screen reader would read aloud) — this is a real, officially documented Android
+  mechanism, not a notification-scraping hack. `phone-app`'s `NavigationAccessibilityService`
+  captures this text; `core`'s `NavigationAnnouncementParser` (9 passing tests) turns it into a
+  structured checkpoint; `NavigationManager.onVehicleSpeedTick` smoothly counts the distance down
+  between checkpoints using the vehicle's own live speed, so the watch shows a continuous
+  countdown rather than discrete jumps.
+- ⚠️ **Play Store policy, not a blocker**: using `AccessibilityService` for a non-accessibility
+  purpose requires a Play Console declaration, clear in-app disclosure (see `phone-app`'s
+  `MainActivity`), and a narrow, justified scope — which is why the service is filtered to only
+  `com.google.android.apps.maps`/`com.waze` and `canRetrieveWindowContent="false"`. Enforcement
+  has been tightening and more changes are scheduled through 2027 — worth re-checking current
+  policy before shipping, not just at build time.
+- ❓ **Still needs real-device verification**: whether Google Maps/Waze actually emit the
+  announcement text this was built to expect is unconfirmed — `phone-app/README.md` has the exact
+  test to run (install on a real phone, start real navigation, watch logcat). This is the single
+  biggest remaining assumption in the whole Maps strategy.
+- 🧩 Waze's third-party data sharing (the "Navigation Connect API") remains a formal partner
+  integration for specific approved use cases, not something available here regardless.
   [Source: Waze Help — Navigate with Waze from third-party apps](https://support.google.com/waze/answer/10389770?hl=en)
-- ❓ **Needs further research**: whether a `NotificationListenerService` could reliably parse
-  Android Auto-style ongoing navigation notifications (road name, distance, ETA are sometimes
-  present in the notification's text/extras for some navigation apps). This is unofficial,
-  fragile (breaks on notification format changes, differs per app), and closer to screen-scraping
-  than an API — worth a real-device spike, but not something to design the primary implementation
-  around.
-- **Conclusion for this project:** realistically, Maps needs its own dedicated companion
-  navigation experience — either the phone-side companion app embeds Google's Navigation SDK
-  directly (so it *is* the navigation engine, not a passive observer of Google Maps), or the
-  scope is narrowed to "navigation info this project's own companion app produces." This is a
-  bigger decision than the others and should be made deliberately, not discovered late — flagging
-  it now while `NavigationState`/`NavigationManager` are still cheap to adjust.
 
 ## NFC
 
@@ -113,16 +124,30 @@ platform choice.**
   instead of raw bytes**, since fighting the platform's mandated channel isn't worth it. This is
   the single highest-priority open question for the next hardware-implementation phase.
 
-## Blizzer
+## Blizzer — DECIDED: own camera-proximity detection, not reading the real Blizzer app
 
-- ❓ **Needs further research** — Blizzer's real data source isn't specified anywhere in the
-  provided context (is it vehicle-derived, phone-derived, cloud-derived, or dashboard-local?).
-  Nothing here can be confirmed or restricted without knowing what "Blizzer" actually
-  integrates with in the real product. `BlizzerEvent`/`BlizzerManager` were built to be a pure
-  "event in, overlay out" pipe specifically so this is a safe unknown to defer — whatever
-  produces Blizzer events later just needs to call the same `PhoneCommunication.observeBlizzerEvents`-
-  shaped contract (or a new hardware interface, if it turns out Blizzer doesn't come from the
-  phone at all).
+- ✅ **Now specified**: Blizzer is a speed-camera proximity alert (modeled on the real "Blitzer"
+  phone app), beeping at decreasing distance thresholds (e.g. 500m, 200m, 100m) as a known camera
+  is approached.
+- ❌ **Reading the actual third-party Blizzer/Blitzer app is not viable** — same category of
+  problem as Navigation: no generic OS-level API exists for a third-party app to read another
+  app's proximity alerts, and reverse-engineering it would be exactly as fragile as
+  notification-scraping, with none of the "at least it's an official mechanism" benefit that
+  `AccessibilityService` announcement text has for Navigation.
+- ✅ **What was chosen instead**: build camera-proximity detection independently, inside the
+  companion app — GPS position + a speed-camera POI database (community/open datasets, or a paid
+  POI provider), computing distance to the nearest known camera locally. No dependency on any
+  other app, no fragile scraping. This is genuinely more achievable than Navigation: it's GPS +
+  math against a static dataset, not an integration with someone else's live app state.
+- ✅ **Fully built and tested on the watch/core side already**, independent of that phone-side
+  database work: `BlizzerEvent.distanceMeters` carries the threshold, `BlizzerManager` tracks the
+  active event, `BlizzerAudioManager` (4 passing tests) beeps once per new threshold (not once per
+  minor update), and the Compose `BlizzerOverlay` blinks faster as distance shrinks. Whatever
+  eventually feeds real camera-proximity data in just needs to call
+  `PhoneCommunication.observeBlizzerEvents`'s existing contract — nothing above it changes.
+- ❓ **Still needed**: sourcing an actual speed-camera POI dataset (community data vs. a licensed
+  provider) is unresearched — a separate, later decision from anything in this document, since it
+  has nothing to do with Android platform capabilities.
 
 ---
 
@@ -131,12 +156,13 @@ platform choice.**
 | Capability | Verdict | What's needed |
 |---|---|---|
 | Media (play/pause/next/prev, now-playing) | 🧩 Companion app + one-time notification-access grant | `NotificationListenerService` + `MediaSessionManager` |
-| Navigation (live turn-by-turn from an arbitrary nav app) | 🧩 Companion app, narrower than hoped | Either embed Google's Navigation SDK in the companion app, or scope down to nav data the companion app itself produces |
+| Navigation (turn-by-turn) | ✅ **Decided**: AccessibilityService announcement capture | `phone-app`'s `NavigationAccessibilityService` — needs real-device verification, see `phone-app/README.md` |
+| Blizzer (camera proximity) | ✅ **Decided**: own GPS + camera POI database, not reading the real app | Needs a camera POI dataset (separate, later decision) — watch/core side fully built already |
 | NFC tap detection | ✅ Confirmed for foreground | Standard Android NFC APIs |
 | NFC tap detection while asleep/background | ❓ Needs a real-device spike | — |
 | Phone transport (if target is Wear OS) | ✅ Confirmed, but not what `BluetoothProvider` currently models | Wearable Data Layer API (`DataClient`/`MessageClient`), not raw BLE |
 | Phone transport (if target is generic embedded Android) | ✅ Confirmed, matches current `BluetoothProvider` | Runtime BLE permissions (Android 12+) + foreground service for background scanning |
-| Blizzer | ❓ Unknown — spec doesn't define its real data source | Needs product clarification before any research is possible |
+| Blizzer | ✅ Decided — own GPS + camera POI database | See above; needs a POI dataset, not Android platform research |
 
 **Recommended next step before building real hardware implementations:** confirm the target
 platform (Wear OS vs. generic embedded Android) — it's the one open question that changes which

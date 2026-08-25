@@ -18,3 +18,4 @@ rootProject.name = "automotive-dashboard"
 
 include(":core")
 include(":wearos-app")
+include(":phone-app")

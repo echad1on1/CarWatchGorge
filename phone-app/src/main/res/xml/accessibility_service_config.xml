@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Deliberately narrow scope, both for user trust and for Play Store review:
+    - packageNames: ONLY known navigation apps. This service is blind to everything else on the
+      phone — it cannot see banking apps, messages, or anything unrelated.
+    - accessibilityEventTypes: typeAnnouncement is the primary target (what a screen reader would
+      read aloud — see NavigationAccessibilityService's class doc for why). typeWindowStateChanged
+      is included as a fallback signal only; verify on a real device whether it's actually needed
+      or just adds noise once real announcement text has been observed from Maps/Waze.
+    - canRetrieveWindowContent="false": this service does NOT walk the screen's view hierarchy or
+      read arbitrary on-screen text — it only reacts to announcement events pushed to it. This is
+      the "least invasive API sufficient for the job" the Play Store's accessibility policy asks
+      developers to prefer.
+-->
+<accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
+    android:accessibilityEventTypes="typeAnnouncement|typeWindowStateChanged"
+    android:accessibilityFeedbackType="feedbackGeneric"
+    android:canRetrieveWindowContent="false"
+    android:notificationTimeout="0"
+    android:packageNames="com.google.android.apps.maps,com.waze"
+    android:description="@string/accessibility_service_description" />

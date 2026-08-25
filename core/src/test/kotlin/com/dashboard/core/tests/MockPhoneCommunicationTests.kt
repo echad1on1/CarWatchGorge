@@ -95,11 +95,64 @@ fun mockPhoneCommunicationSuite() = TestSuite("MockPhoneCommunication dev contro
         assertEquals("Low tire pressure", received!!.message, "message should round-trip")
     }
 
+    test("triggerCameraWarning at long range uses WARNING, close range uses ALERT") {
+        val phone = MockPhoneCommunication()
+        var received: BlizzerEvent? = null
+        phone.observeBlizzerEvents { received = it }
+
+        phone.triggerCameraWarning(500)
+        assertEquals(com.dashboard.core.domain.BlizzerEventType.WARNING, received!!.type, "500m should be WARNING")
+
+        phone.triggerCameraWarning(100)
+        assertEquals(com.dashboard.core.domain.BlizzerEventType.ALERT, received!!.type, "100m should be ALERT (more urgent)")
+    }
+
+    test("successive triggerCameraWarning calls update the SAME event id, not stack new ones") {
+        val phone = MockPhoneCommunication()
+        val id500 = phone.triggerCameraWarning(500)
+        val id200 = phone.triggerCameraWarning(200)
+        val id100 = phone.triggerCameraWarning(100)
+
+        assertEquals(id500, id200, "200m update should reuse the 500m event's id")
+        assertEquals(id500, id100, "100m update should reuse the same event's id")
+    }
+
     test("late subscriber to navigation state gets current snapshot immediately") {
         val phone = MockPhoneCommunication()
         phone.startNavigation(roadName = "Elm St")
         var received: String? = null
         phone.observeNavigationState { received = it.roadName }
         assertEquals("Elm St", received, "late subscriber should see current nav state immediately")
+    }
+
+    test("announceNavigation parses realistic spoken text and updates navigation state") {
+        val phone = MockPhoneCommunication()
+        val parsed = phone.announceNavigation("In 300 meters, turn right onto Elm Street")
+        assertTrue(parsed, "should successfully parse a realistic announcement")
+        assertTrue(phone.currentNavigation.active, "should activate navigation")
+        assertEquals(com.dashboard.core.domain.Direction.TURN_RIGHT, phone.currentNavigation.direction, "direction")
+        assertEquals(300.0, phone.currentNavigation.distanceMeters, "distance")
+        assertEquals("Elm Street", phone.currentNavigation.roadName, "road name")
+    }
+
+    test("announceNavigation keeps prior distance/road when a follow-up announcement omits them") {
+        val phone = MockPhoneCommunication()
+        phone.announceNavigation("In 300 meters, turn right onto Elm Street")
+        phone.announceNavigation("Turn right") // no distance or road mentioned this time
+        assertEquals("Elm Street", phone.currentNavigation.roadName, "should keep the previously known road name")
+    }
+
+    test("announceNavigation returns false and is a no-op for unparseable text") {
+        val phone = MockPhoneCommunication()
+        val parsed = phone.announceNavigation("Welcome to Kepler Freeway radio")
+        assertTrue(!parsed, "should fail to parse")
+        assertTrue(!phone.currentNavigation.active, "should not have changed navigation state")
+    }
+
+    test("announceNavigation zeros out distance on arrival, not a stale prior value") {
+        val phone = MockPhoneCommunication()
+        phone.announceNavigation("In 500 meters, turn right")
+        phone.announceNavigation("You have arrived at your destination")
+        assertEquals(0.0, phone.currentNavigation.distanceMeters, "arrival should not keep showing a stale distance")
     }
 }
