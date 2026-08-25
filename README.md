@@ -150,3 +150,4 @@ Everything through the full simulated-hardware software system described in the 
    placeholders — noted inline in the code).
 5. **Persist settings for real** (Android DataStore) behind the existing `SettingsStore`
    interface — no consumer of `SettingsManager` needs to change.
+
