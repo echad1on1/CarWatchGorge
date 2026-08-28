@@ -1,5 +1,5 @@
-// The phone-side companion app. Runs on the user's phone, captures spoken turn-by-turn
-// announcements from whatever navigation app is running (via AccessibilityService — see
+// The phone-side companion app. Runs on the user's phone, reads on-screen turn-by-turn text
+// from whatever navigation app is running (via AccessibilityService — see
 // NavigationAccessibilityService.kt and docs/android-integration-research.md for why this
 // approach was chosen over the alternatives), and sends the resulting checkpoints to the watch
 // over BluetoothPhoneCommunication (from :core).
@@ -34,5 +34,4 @@ android {
 dependencies {
     implementation(project(":core"))
     implementation("androidx.core:core-ktx:1.13.1")
-    implementation("androidx.appcompat:appcompat:1.7.0")
 }
