@@ -5,9 +5,9 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import com.dashboard.core.domain.PowerState
 import com.dashboard.core.domain.Signal
+import com.dashboard.core.communication.BluetoothPhoneCommunication
 import com.dashboard.core.hardware.mock.InMemorySettingsStore
 import com.dashboard.core.hardware.mock.MockAudioOutput
-import com.dashboard.core.hardware.mock.MockBluetoothProvider
 import com.dashboard.core.hardware.mock.MockNfcProvider
 import com.dashboard.core.hardware.mock.MockPhoneCommunication
 import com.dashboard.core.hardware.mock.MockPowerProvider
@@ -21,38 +21,37 @@ import com.dashboard.core.service.NavigationManager
 import com.dashboard.core.service.PowerManager
 import com.dashboard.core.service.SettingsManager
 import com.dashboard.core.service.VehicleDataManager
+import com.dashboard.wearos.hardware.WearDataLayerBluetoothProvider
 
 /**
  * Entry point. Composes the app EXACTLY the way
  * [com.dashboard.core.demo.ConsoleDemo] does — same hardware mocks, same managers, same
  * [DevControlPanel] facade — but renders real Compose UI ([DashboardApp]) instead of println.
  *
- * IMPORTANT: this still uses the *mock* hardware implementations. Real NFC/Bluetooth/vehicle
- * implementations are a separate, later step — see docs/android-integration-research.md and
- * this module's manifest comments before building them. Swapping a mock for a real
- * implementation here should require touching only this file (constructing a different
- * `XyzProvider`), never `core/` or the Compose screens.
+ * IMPORTANT: vehicle/NFC/media/blizzer still use mocks. Navigation and phone link state use the
+ * Wear OS Data Layer ([WearDataLayerBluetoothProvider]) — see docs/android-integration-research.md.
  */
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // ---- Hardware layer (mocks — see class doc) ----------------------------------------
+        // ---- Hardware layer ---------------------------------------------------------------
         val vehicleProvider = MockVehicleDataProvider()
         val nfcProvider = MockNfcProvider()
-        val bluetoothProvider = MockBluetoothProvider(connectDelayMillis = 300)
-        val phoneCommunication = MockPhoneCommunication()
+        val dataLayerProvider = WearDataLayerBluetoothProvider.getInstance(this)
+        val mockPhoneCommunication = MockPhoneCommunication()
+        val navPhoneCommunication = BluetoothPhoneCommunication(dataLayerProvider)
         val audioOutput = MockAudioOutput()
         val powerProvider = MockPowerProvider(initial = PowerState.ACTIVE)
         val settingsStore = InMemorySettingsStore()
 
         // ---- Service / domain layer -----------------------------------------------------------
         val vehicleManager = VehicleDataManager(vehicleProvider)
-        val connectionManager = ConnectionManager(nfcProvider, bluetoothProvider)
-        val navigationManager = NavigationManager(phoneCommunication)
+        val connectionManager = ConnectionManager(nfcProvider, dataLayerProvider)
+        val navigationManager = NavigationManager(navPhoneCommunication)
         val navigationAudioManager = NavigationAudioManager(navigationManager, audioOutput)
-        val mediaManager = MediaManager(phoneCommunication)
-        val blizzerManager = BlizzerManager(phoneCommunication)
+        val mediaManager = MediaManager(mockPhoneCommunication)
+        val blizzerManager = BlizzerManager(mockPhoneCommunication)
         val settingsManager = SettingsManager(settingsStore)
 
         // Feeds the vehicle's live speed into NavigationManager so distance-to-next-turn counts
@@ -80,7 +79,13 @@ class MainActivity : ComponentActivity() {
             },
         )
 
-        val devControls = DevControlPanel(connectionManager, nfcProvider, vehicleProvider, phoneCommunication, powerProvider)
+        val devControls = DevControlPanel(
+            connectionManager,
+            nfcProvider,
+            vehicleProvider,
+            mockPhoneCommunication,
+            powerProvider,
+        )
 
         powerManager.start()
         navigationAudioManager.start()
