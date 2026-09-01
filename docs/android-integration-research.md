@@ -97,32 +97,26 @@ announcement text*, and this project is now built around it.**
 
 ## Bluetooth / phone communication transport
 
-**This is the one finding that could reshape `BluetoothProvider`, depending on the final
-platform choice.**
+**Wear OS Data Layer is the chosen transport — implemented in Phase B.**
 
-- ✅ If the final device runs **Wear OS**, Google explicitly documents that raw Bluetooth
+- ✅ The final device runs **Wear OS**. Google explicitly documents that raw Bluetooth
   sockets should **not** be used to talk to the paired phone — the *Wearable Data Layer API*
-  (`DataClient`/`MessageClient`, part of Google Play services) is the only supported channel
-  between a Wear OS watch and its paired phone, and it works over whatever transport is
-  available (Bluetooth directly, or the cloud when Bluetooth isn't connected).
+  (`DataClient`/`MessageClient`, part of Google Play services) is the supported channel
+  between a Wear OS watch and its paired phone.
   [Source: Android Developers — Data Layer API overview](https://developer.android.com/training/wearables/data/overview)
-- ⚠️ The Data Layer API works **phone ↔ Wear OS watch only** — it explicitly does not work if
-  the watch is paired to an iOS phone, and it requires the phone side to run a companion app
-  with a matching `WearableListenerService`. Since this project's phone side is already a
-  planned companion app, that requirement is already satisfied by design.
+- ✅ **Implemented:** `wearos-app`'s `WearDataLayerBluetoothProvider` implements `core`'s
+  `BluetoothProvider` via `MessageClient`, and `NavDataListenerService` receives inbound nav
+  checkpoints on `/automotive-dashboard/nav`. The phone companion's `WearMessageSender` sends
+  encoded checkpoints from `NavigationAccessibilityService` after parsing.
+- ⚠️ The Data Layer API works **phone ↔ Wear OS watch only** — it requires the phone side to
+  run a companion app with Google Play services. Since this project's phone side is already a
+  planned companion app, that requirement is satisfied by design.
   [Source: Android Developers — Sync data on Wear OS](https://developer.android.com/training/wearables/data/sync)
-- ✅ If the final device runs **generic embedded Android (not Wear OS)** rather than actual Wear
-  OS, classic BLE GATT (what `BluetoothProvider` currently models) is the right layer, and Android
-  12+ requires runtime-granted `BLUETOOTH_SCAN`/`BLUETOOTH_CONNECT` permissions plus, for
-  background scanning, a foreground service.
-  [Source: Android Developers — Bluetooth permissions](https://developer.android.com/develop/connectivity/bluetooth/bt-permissions)
-- **Conclusion for this project:** `BluetoothProvider` and `PhoneCommunication` stay correct
-  either way — the split already isolates "how bytes move" from "what the bytes mean," which is
-  exactly what's needed to swap a `MessageClient`-backed implementation in for a raw-BLE-backed
-  one. But which one gets built is a real decision, not a detail: **if Wear OS is confirmed as
-  the target, `BluetoothProvider` should be reconsidered as a `DataLayerProvider`-style interface
-  instead of raw bytes**, since fighting the platform's mandated channel isn't worth it. This is
-  the single highest-priority open question for the next hardware-implementation phase.
+- ✅ `BluetoothProvider` and `PhoneCommunication` stayed correct — `BluetoothPhoneCommunication`
+  plugs into `WearDataLayerBluetoothProvider` without any `core/` changes, proving the
+  transport/protocol split.
+- ✅ If the final device were **generic embedded Android (not Wear OS)** instead, classic BLE
+  GATT would be the right layer (see prior research notes). That path is not being built.
 
 ## Blizzer — DECIDED: own camera-proximity detection, not reading the real Blizzer app
 
@@ -160,11 +154,11 @@ platform choice.**
 | Blizzer (camera proximity) | ✅ **Decided**: own GPS + camera POI database, not reading the real app | Needs a camera POI dataset (separate, later decision) — watch/core side fully built already |
 | NFC tap detection | ✅ Confirmed for foreground | Standard Android NFC APIs |
 | NFC tap detection while asleep/background | ❓ Needs a real-device spike | — |
-| Phone transport (if target is Wear OS) | ✅ Confirmed, but not what `BluetoothProvider` currently models | Wearable Data Layer API (`DataClient`/`MessageClient`), not raw BLE |
-| Phone transport (if target is generic embedded Android) | ✅ Confirmed, matches current `BluetoothProvider` | Runtime BLE permissions (Android 12+) + foreground service for background scanning |
+| Phone transport (Wear OS) | ✅ **Implemented** — Wear Data Layer (`MessageClient`) | `WearDataLayerBluetoothProvider` + `NavDataListenerService` on watch; `WearMessageSender` on phone |
+| Phone transport (generic embedded Android) | Not targeted | Classic BLE GATT — not being built |
 | Blizzer | ✅ Decided — own GPS + camera POI database | See above; needs a POI dataset, not Android platform research |
 
-**Recommended next step before building real hardware implementations:** confirm the target
-platform (Wear OS vs. generic embedded Android) — it's the one open question that changes which
-interface (`BluetoothProvider` as-is, or a Data-Layer-shaped replacement) gets implemented for
-real, and everything else in this document holds regardless of that answer.
+**Recommended next step before building real hardware implementations:** verify the Data Layer
+pipe on a paired phone + Wear OS emulator/device (see `phone-app/README.md` and
+`wearos-app/README.md`). Remaining greenfield work: watch-side vehicle BLE (Car panel) and
+phone-side media session capture (Music panel).
