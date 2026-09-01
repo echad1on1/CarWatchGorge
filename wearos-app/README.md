@@ -1,9 +1,10 @@
 # wearos-app
 
 The real Wear OS UI: Jetpack Compose for Wear OS, wired directly to `core`'s managers. Contains
-**only** presentation — no business logic, no direct hardware access. It still uses `core`'s
-*mock* hardware implementations (see `MainActivity.kt`); real NFC/Bluetooth/vehicle
-implementations are a deliberately separate, later step.
+**only** presentation — no business logic, no direct hardware access.
+
+**Navigation transport is wired** via the Wear OS Data Layer (`WearDataLayerBluetoothProvider`
++ `NavDataListenerService`). Vehicle data, NFC, media, and Blizzer still use `core` mocks.
 
 ## Status: written, not yet build-verified
 
@@ -30,8 +31,8 @@ wearos-app/
     AndroidManifest.xml       Watch feature declaration; hardware permissions commented out
                                until their real implementations exist (see the file itself)
     kotlin/com/dashboard/wearos/
-      MainActivity.kt          Composes the app exactly like ConsoleDemo does (same mocks, same
-                                managers) but renders Compose UI instead of println
+      MainActivity.kt          Composes managers; nav + link state via Wear Data Layer, other
+                                subsystems still on mocks (see class doc)
       ComposeBridge.kt         Bridges core's callback-based observe() into Compose State,
                                 without core needing a coroutines/Flow dependency
       DashboardApp.kt          Top-level: HorizontalPager for Car/Maps/Music + Blizzer overlay
@@ -48,10 +49,9 @@ wearos-app/
 
 1. Confirm the build actually compiles and runs on a Wear OS emulator/device — see the root
    `TESTING.md` for a full walkthrough once it does.
-2. Real hardware implementations (`AndroidNfcProvider`, a Bluetooth or Wear Data Layer-based
-   `BluetoothProvider`, etc.) — see `docs/android-integration-research.md` first, since it flags
-   an open question (raw BLE vs. the Wear OS Data Layer API) that should be resolved before this
-   step, not during it.
+2. Real hardware still needed: NFC tap provider, watch-side vehicle BLE (`VehicleDataProvider`),
+   phone-side media session capture. Navigation phone → watch transport is done — see
+   `hardware/WearDataLayerBluetoothProvider.kt`.
 3. Add a launcher icon (Android Studio's Image Asset tool) — the manifest deliberately omits
    `android:icon` for now since no icon resource exists in this sandbox.
 
