@@ -57,4 +57,7 @@ dependencies {
     implementation("androidx.wear.compose:compose-ui-tooling:1.6.2")
 
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.9.0")
+
+    // Phone ↔ watch transport for navigation checkpoints (see WearDataLayerBluetoothProvider).
+    implementation("com.google.android.gms:play-services-wearable:20.0.0")
 }
