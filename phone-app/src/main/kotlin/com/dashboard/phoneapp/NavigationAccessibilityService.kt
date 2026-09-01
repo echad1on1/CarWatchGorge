@@ -70,7 +70,7 @@ class NavigationAccessibilityService : AccessibilityService() {
         )
 
         val encodedBytes = MessageCodec.encode(navigationState.toProtocol())
-        Log.d(TAG, "Encoded as ${encodedBytes.size} bytes, ready to send once a BluetoothProvider is wired")
+        WearMessageSender.sendNavUpdate(applicationContext, encodedBytes)
     }
 
     override fun onInterrupt() {
