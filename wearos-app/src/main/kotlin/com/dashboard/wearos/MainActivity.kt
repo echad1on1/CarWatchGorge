@@ -12,7 +12,6 @@ import com.dashboard.core.hardware.mock.MockNfcProvider
 import com.dashboard.core.hardware.mock.MockPhoneCommunication
 import com.dashboard.core.hardware.mock.MockPowerProvider
 import com.dashboard.core.hardware.mock.MockVehicleDataProvider
-import com.dashboard.core.service.BlizzerAudioManager
 import com.dashboard.core.service.BlizzerManager
 import com.dashboard.core.service.ConnectionManager
 import com.dashboard.core.service.DevControlPanel
@@ -54,7 +53,6 @@ class MainActivity : ComponentActivity() {
         val navigationAudioManager = NavigationAudioManager(navigationManager, audioOutput)
         val mediaManager = MediaManager(phoneCommunication)
         val blizzerManager = BlizzerManager(phoneCommunication)
-        val blizzerAudioManager = BlizzerAudioManager(blizzerManager, audioOutput)
         val settingsManager = SettingsManager(settingsStore)
 
         // Feeds the vehicle's live speed into NavigationManager so distance-to-next-turn counts
@@ -86,7 +84,6 @@ class MainActivity : ComponentActivity() {
 
         powerManager.start()
         navigationAudioManager.start()
-        blizzerAudioManager.start()
 
         setContent {
             DashboardApp(

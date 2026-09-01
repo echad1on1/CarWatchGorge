@@ -41,6 +41,13 @@ class BlizzerManager(private val phoneCommunication: PhoneCommunication) {
         return emitter.subscribe(listener)
     }
 
+    /** Clears the active overlay (e.g. after the 5-second auto-dismiss timer). */
+    fun dismissCurrentEvent() {
+        if (currentEvent == null) return
+        currentEvent = null
+        emitter.emit(null)
+    }
+
     private fun onEvent(event: BlizzerEvent) {
         currentEvent = if (event.active) event else null
         emitter.emit(currentEvent)
