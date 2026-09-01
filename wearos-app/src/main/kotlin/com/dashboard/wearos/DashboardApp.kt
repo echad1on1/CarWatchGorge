@@ -39,6 +39,7 @@ import com.dashboard.wearos.ui.CarScreen
 import com.dashboard.wearos.ui.DevControlsScreen
 import com.dashboard.wearos.ui.MapsScreen
 import com.dashboard.wearos.ui.MusicScreen
+import kotlinx.coroutines.delay
 
 /**
  * Top-level UI. Real swipe navigation via [HorizontalPager] — pages are Car-only before a phone
@@ -83,6 +84,15 @@ fun DashboardApp(
     LaunchedEffect(isConnected) {
         if (!isConnected && pagerState.currentPage != 0) {
             pagerState.animateScrollToPage(0)
+        }
+    }
+
+    // Auto-dismiss Blizzer after 5 seconds, returning to whichever panel was underneath.
+    LaunchedEffect(blizzerEvent?.id, blizzerEvent?.timestampMillis) {
+        val event = blizzerEvent ?: return@LaunchedEffect
+        delay(5_000)
+        if (blizzerManager.currentEvent?.id == event.id) {
+            blizzerManager.dismissCurrentEvent()
         }
     }
 

@@ -34,6 +34,15 @@ fun blizzerManagerSuite() = TestSuite("BlizzerManager").apply {
         assertEquals(null, manager.currentEvent, "should be cleared after dismiss, with no panel awareness needed")
     }
 
+    test("dismissCurrentEvent clears active event without phone input") {
+        val phone = MockPhoneCommunication()
+        val manager = BlizzerManager(phone)
+        manager.start()
+        phone.triggerBlizzer("Speed camera ahead")
+        manager.dismissCurrentEvent()
+        assertEquals(null, manager.currentEvent, "manager-side dismiss should clear the overlay")
+    }
+
     test("late subscriber immediately receives the current active event") {
         val phone = MockPhoneCommunication()
         val manager = BlizzerManager(phone)

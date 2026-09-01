@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import androidx.wear.compose.material3.Text
 import com.dashboard.core.domain.BlizzerEvent
 import com.dashboard.core.domain.BlizzerEventType
+import com.dashboard.core.domain.BlizzerProximity
 
 /**
  * Renders above whichever page [DashboardApp] currently has selected. Deliberately has no
@@ -27,20 +28,19 @@ import com.dashboard.core.domain.BlizzerEventType
  * entire point: the same overlay works identically over Car, Maps, or Music because it never
  * looks at what it's covering.
  *
- * Blizzer is a speed-camera proximity alert (see [BlizzerEvent.distanceMeters] doc). The real
- * app beeps as the camera gets closer; here the visual analog is a blink that speeds up the
- * closer the camera is, escalating from a slow pulse at long range to a fast, urgent flash right
- * before it. [BlizzerAudioManager][com.dashboard.core.service.BlizzerAudioManager] handles the
- * actual beep — this composable is purely the visual side of the same event.
+ * Blizzer is a speed-camera proximity alert (see [BlizzerEvent.distanceMeters] doc). Color and
+ * blink speed escalate as the camera gets closer — blue at long range through green, amber, and
+ * red right before it. Non-proximity events (no distance) use a neutral background.
  */
 @Composable
 fun BlizzerOverlay(event: BlizzerEvent) {
-    val backgroundColor = when (event.type) {
-        BlizzerEventType.WARNING, BlizzerEventType.ALERT -> Color(0xFFB00020)
-        BlizzerEventType.INFO, BlizzerEventType.ANIMATION -> Color(0xFF1A1A2E)
+    val backgroundColor = when {
+        event.distanceMeters != null -> Color(BlizzerProximity.colorArgbFor(event.distanceMeters))
+        event.type == BlizzerEventType.WARNING || event.type == BlizzerEventType.ALERT -> Color(0xFFB00020)
+        else -> Color(BlizzerProximity.COLOR_NEUTRAL)
     }
 
-    val blinkPeriodMillis = blinkPeriodFor(event.distanceMeters)
+    val blinkPeriodMillis = BlizzerProximity.blinkPeriodMillisFor(event.distanceMeters)
 
     val transition = rememberInfiniteTransition(label = "blizzer-blink")
     val alpha by transition.animateFloat(
@@ -63,16 +63,4 @@ fun BlizzerOverlay(event: BlizzerEvent) {
     ) {
         Text(event.message, fontWeight = FontWeight.Bold)
     }
-}
-
-/**
- * Closer camera -> faster blink. No distance (a generic, non-proximity Blizzer event) blinks at
- * a calm, unhurried default rate.
- */
-private fun blinkPeriodFor(distanceMeters: Int?): Int = when {
-    distanceMeters == null -> 900
-    distanceMeters <= 100 -> 220
-    distanceMeters <= 200 -> 400
-    distanceMeters <= 500 -> 650
-    else -> 900
 }

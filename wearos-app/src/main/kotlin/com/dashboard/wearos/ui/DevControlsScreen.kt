@@ -48,6 +48,8 @@ fun DevControlsScreen(devControls: DevControlPanel, onClose: () -> Unit) {
 
         // Blizzer: camera-proximity alerts at decreasing distance, matching the real app.
         // Tap them in sequence to see the overlay's blink speed up as distance shrinks.
+        "Camera Warning: 2000m" to { devControls.triggerCameraWarning(2000) },
+        "Camera Warning: 1000m" to { devControls.triggerCameraWarning(1000) },
         "Camera Warning: 500m" to { devControls.triggerCameraWarning(500) },
         "Camera Warning: 200m" to { devControls.triggerCameraWarning(200) },
         "Camera Warning: 100m" to { devControls.triggerCameraWarning(100) },
