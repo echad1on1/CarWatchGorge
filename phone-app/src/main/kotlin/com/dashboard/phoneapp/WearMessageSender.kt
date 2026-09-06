@@ -7,7 +7,7 @@ private const val MESSAGE_PATH = "/automotive-dashboard/nav"
 
 /** Sends encoded navigation checkpoints to any connected Wear OS watch. */
 object WearMessageSender {
-    fun send(context: Context, data: ByteArray) {
+    fun sendNavUpdate(context: Context, data: ByteArray) {
         Wearable.getNodeClient(context).connectedNodes.addOnSuccessListener { nodes ->
             nodes.forEach { node ->
                 Wearable.getMessageClient(context).sendMessage(node.id, MESSAGE_PATH, data)
