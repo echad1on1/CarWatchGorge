@@ -19,28 +19,36 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.wear.compose.material3.Text
 import com.dashboard.core.domain.BlizzerEvent
-import com.dashboard.core.domain.BlizzerEventType
-import com.dashboard.core.domain.BlizzerProximity
+import com.dashboard.core.domain.BlizzerSeverity
+import com.dashboard.core.domain.BlizzerSeverityMapper
 
 /**
- * Renders above whichever page [DashboardApp] currently has selected. Deliberately has no
- * parameter for "which panel is underneath" — Blizzer doesn't need to know, and that's the
- * entire point: the same overlay works identically over Car, Maps, or Music because it never
- * looks at what it's covering.
+ * Renders above whichever page DashboardApp currently has selected. Deliberately has no
+ * parameter for "which panel is underneath" — Blizzer doesn't need to know, which is why the
+ * same overlay works identically over Car, Maps, or Music.
  *
- * Blizzer is a speed-camera proximity alert (see [BlizzerEvent.distanceMeters] doc). Color and
- * blink speed escalate as the camera gets closer — blue at long range through green, amber, and
- * red right before it. Non-proximity events (no distance) use a neutral background.
+ * Color and blink speed both escalate with proximity, per spec: blue (>1km, calm) -> green
+ * (500m-1km) -> red (<=500m, urgent). Severity is computed in `core` (BlizzerSeverityMapper,
+ * unit-tested) so this composable only maps a tier to a color, never re-derives the thresholds
+ * itself. Auto-dismissal after 5s happens in BlizzerManager (core), not here — this composable
+ * just renders whatever is currently active.
  */
 @Composable
 fun BlizzerOverlay(event: BlizzerEvent) {
-    val backgroundColor = when {
-        event.distanceMeters != null -> Color(BlizzerProximity.colorArgbFor(event.distanceMeters))
-        event.type == BlizzerEventType.WARNING || event.type == BlizzerEventType.ALERT -> Color(0xFFB00020)
-        else -> Color(BlizzerProximity.COLOR_NEUTRAL)
+    val severity = BlizzerSeverityMapper.forDistance(event.distanceMeters)
+    val backgroundColor = when (severity) {
+        BlizzerSeverity.DISTANT -> Color(0xFF1565C0)     // blue - far away, calm
+        BlizzerSeverity.APPROACHING -> Color(0xFF2E7D32) // green - approaching
+        BlizzerSeverity.CLOSE -> Color(0xFFB00020)       // red - close, urgent
+        BlizzerSeverity.INFO -> Color(0xFF1A1A2E)        // neutral - non-proximity event
     }
 
-    val blinkPeriodMillis = BlizzerProximity.blinkPeriodMillisFor(event.distanceMeters)
+    val blinkPeriodMillis = when (severity) {
+        BlizzerSeverity.DISTANT -> 900
+        BlizzerSeverity.APPROACHING -> 500
+        BlizzerSeverity.CLOSE -> 220
+        BlizzerSeverity.INFO -> 900
+    }
 
     val transition = rememberInfiniteTransition(label = "blizzer-blink")
     val alpha by transition.animateFloat(

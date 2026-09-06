@@ -14,6 +14,8 @@ fun main() {
         navigationAudioManagerSuite(),
         mediaManagerSuite(),
         blizzerManagerSuite(),
+        blizzerSeverityMapperSuite(),
+        blizzerAutoDismissSuite(),
         blizzerProximitySuite(),
         blizzerAudioManagerSuite(),
         settingsManagerSuite(),
