@@ -5,32 +5,51 @@ import com.dashboard.core.hardware.BluetoothProvider
 import com.dashboard.core.hardware.Emitter
 import com.dashboard.core.hardware.LinkState
 import com.dashboard.core.hardware.Subscription
-import com.dashboard.wearos.BuildConfig
-import com.google.android.gms.wearable.Node
+import com.google.android.gms.tasks.Tasks
 import com.google.android.gms.wearable.Wearable
-import java.util.concurrent.atomic.AtomicReference
+
+/** Must match the path phone-app's WearMessageSender sends to. */
+const val MESSAGE_PATH = "/automotive-dashboard/nav"
 
 /**
- * Wear OS Data Layer transport implementing [BluetoothProvider]. Uses [MessageClient] for
- * outbound nav payloads and receives inbound messages via [NavDataListenerService.pushInbound].
+ * The real BluetoothProvider implementation for the watch side, backed by the Wear OS Data
+ * Layer API (MessageClient/NodeClient), NOT raw Bluetooth sockets — per Google's own guidance
+ * (see docs/android-integration-research.md). Plugs directly into core's existing, already-
+ * tested BluetoothPhoneCommunication with zero changes needed in core, and doubles as the
+ * BluetoothProvider ConnectionManager uses for real link state.
  *
- * Shared by [com.dashboard.core.service.ConnectionManager] (link state from node presence) and
- * [com.dashboard.core.communication.BluetoothPhoneCommunication] (protocol bytes).
+ * Singleton via [getInstance] so MainActivity and NavDataListenerService (which may be invoked
+ * by the system in a fresh process, separate from any running Activity) always resolve to the
+ * same instance's inbound emitter.
  */
-class WearDataLayerBluetoothProvider private constructor(context: Context) : BluetoothProvider {
+class WearDataLayerBluetoothProvider private constructor(private val context: Context) : BluetoothProvider {
 
-    private val appContext = context.applicationContext
-    private val nodeClient = Wearable.getNodeClient(appContext)
-    private val messageClient = Wearable.getMessageClient(appContext)
+    companion object {
+        @Volatile private var instance: WearDataLayerBluetoothProvider? = null
 
-    private val linkStateEmitter = Emitter<LinkState>()
+        fun getInstance(context: Context): WearDataLayerBluetoothProvider =
+            instance ?: synchronized(this) {
+                instance ?: WearDataLayerBluetoothProvider(context.applicationContext).also { instance = it }
+            }
+
+        /** Called by NavDataListenerService when a message arrives from the phone. */
+        fun pushInbound(data: ByteArray) {
+            instance?.inboundEmitter?.emit(data)
+        }
+    }
+
     private val inboundEmitter = Emitter<ByteArray>()
-    private val state = AtomicReference(LinkState.DISCONNECTED)
+    private val linkStateEmitter = Emitter<LinkState>()
+    private var state = LinkState.DISCONNECTED
 
     override fun connect() {
-        if (state.get() != LinkState.DISCONNECTED) return
         setState(LinkState.CONNECTING)
-        nodeClient.connectedNodes.addOnSuccessListener { nodes -> onNodesResolved(nodes) }
+        try {
+            val nodes = Tasks.await(Wearable.getNodeClient(context).connectedNodes)
+            setState(if (nodes.isNotEmpty()) LinkState.CONNECTED else LinkState.DISCONNECTED)
+        } catch (e: Exception) {
+            setState(LinkState.DISCONNECTED)
+        }
     }
 
     override fun disconnect() {
@@ -44,43 +63,16 @@ class WearDataLayerBluetoothProvider private constructor(context: Context) : Blu
         inboundEmitter.subscribe(listener)
 
     override fun send(data: ByteArray) {
-        nodeClient.connectedNodes.addOnSuccessListener { nodes ->
-            for (node in nodes) {
-                messageClient.sendMessage(node.id, NAV_MESSAGE_PATH, data)
+        Wearable.getNodeClient(context).connectedNodes.addOnSuccessListener { nodes ->
+            nodes.forEach { node ->
+                Wearable.getMessageClient(context).sendMessage(node.id, MESSAGE_PATH, data)
             }
-        }
-    }
-
-    /** Called by [NavDataListenerService] when the phone sends a nav checkpoint. */
-    fun pushInbound(data: ByteArray) {
-        if (state.get() != LinkState.CONNECTED) {
-            setState(LinkState.CONNECTED)
-        }
-        inboundEmitter.emit(data)
-    }
-
-    private fun onNodesResolved(nodes: List<Node>) {
-        when {
-            nodes.isNotEmpty() -> setState(LinkState.CONNECTED)
-            BuildConfig.DEBUG -> setState(LinkState.CONNECTED) // emulator dev without a paired phone
-            state.get() == LinkState.CONNECTING -> setState(LinkState.DISCONNECTED)
         }
     }
 
     private fun setState(newState: LinkState) {
-        if (state.getAndSet(newState) == newState) return
+        if (state == newState) return
+        state = newState
         linkStateEmitter.emit(newState)
-    }
-
-    companion object {
-        const val NAV_MESSAGE_PATH = "/automotive-dashboard/nav"
-
-        @Volatile
-        private var instance: WearDataLayerBluetoothProvider? = null
-
-        fun getInstance(context: Context): WearDataLayerBluetoothProvider =
-            instance ?: synchronized(this) {
-                instance ?: WearDataLayerBluetoothProvider(context.applicationContext).also { instance = it }
-            }
     }
 }
