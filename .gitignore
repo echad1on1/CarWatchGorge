@@ -5,3 +5,5 @@ core/bin/
 *.iml
 .gradle/
 local.properties
+
+.fake
