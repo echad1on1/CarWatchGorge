@@ -21,6 +21,7 @@ fun main() {
         cameraProximitySuite(),
         blizzerAudioManagerSuite(),
         settingsManagerSuite(),
+        settingsCodecSuite(),
         powerManagerSuite(),
         endToEndJourneySuite(),
     )

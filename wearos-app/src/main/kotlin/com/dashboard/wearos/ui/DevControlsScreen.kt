@@ -3,11 +3,11 @@ package com.dashboard.wearos.ui
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.wear.compose.foundation.lazy.ScalingLazyColumn
+import androidx.wear.compose.foundation.lazy.items
 import androidx.wear.compose.material3.Button
 import androidx.wear.compose.material3.Text
 import com.dashboard.core.domain.PowerState
@@ -59,7 +59,7 @@ fun DevControlsScreen(devControls: DevControlPanel, onClose: () -> Unit) {
         "Simulate car ACTIVE" to { devControls.simulatePowerState(PowerState.ACTIVE) },
     )
 
-    LazyColumn(
+    ScalingLazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .padding(8.dp),

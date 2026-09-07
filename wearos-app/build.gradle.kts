@@ -30,6 +30,17 @@ android {
         buildConfig = true // needed for BuildConfig.DEBUG, used to gate the dev-controls entry point
     }
 
+    buildTypes {
+        // The ⚙ dev-controls entry point is gated on BuildConfig.DEBUG, so a release build
+        // hides it automatically — that is the spec's "these controls will later be removed
+        // or hidden". Minify is off for now (core uses no reflection; enabling R8 is a
+        // separate, low-risk follow-up — see PLAN.md Phase 5).
+        release {
+            isMinifyEnabled = false
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+        }
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17

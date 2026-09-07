@@ -6,7 +6,6 @@ import androidx.activity.compose.setContent
 import com.dashboard.core.domain.PowerState
 import com.dashboard.core.domain.Signal
 import com.dashboard.core.communication.BluetoothPhoneCommunication
-import com.dashboard.core.hardware.mock.InMemorySettingsStore
 import com.dashboard.core.hardware.mock.MockAudioOutput
 import com.dashboard.core.hardware.mock.MockNfcProvider
 import com.dashboard.core.hardware.mock.MockPhoneCommunication
@@ -20,6 +19,7 @@ import com.dashboard.core.service.NavigationManager
 import com.dashboard.core.service.PowerManager
 import com.dashboard.core.service.SettingsManager
 import com.dashboard.core.service.VehicleDataManager
+import com.dashboard.wearos.hardware.DataStoreSettingsStore
 import com.dashboard.wearos.hardware.WearDataLayerBluetoothProvider
 import com.dashboard.wearos.hardware.vehicle.VehicleProviderFactory
 
@@ -46,7 +46,7 @@ class MainActivity : ComponentActivity() {
         val navPhoneCommunication = BluetoothPhoneCommunication(dataLayerProvider)
         val audioOutput = MockAudioOutput()
         val powerProvider = MockPowerProvider(initial = PowerState.ACTIVE)
-        val settingsStore = InMemorySettingsStore()
+        val settingsStore = DataStoreSettingsStore(this)
 
         // ---- Service / domain layer -----------------------------------------------------------
         val vehicleManager = VehicleDataManager(vehicleProvider)

@@ -15,12 +15,22 @@ Three Gradle modules:
   (`BluetoothProvider`, `VehicleDataProvider`, `PhoneCommunication`, etc.), managers
   (`ConnectionManager`, `NavigationManager`, `MediaManager`, `BlizzerManager`, `PowerManager`,
   `SettingsManager`), the wire protocol (`ProtocolMessage`/`MessageCodec`), and
-  `NavigationAnnouncementParser`, `ObdPidParser`, `MediaSessionSelection`, `CameraProximity`.
-  **21 test suites / 126 assertions (verified 2026-09-07, all passing), run via
-  `./tools/run_tests.sh` or `./gradlew :core:runCoreTests`.**
-- **`wearos-app/`** — the real Wear OS Compose app (watch side).
-- **`phone-app/`** — the real Android companion app (phone side), currently just
-  `NavigationAccessibilityService` + a disclosure `MainActivity`.
+  `NavigationAnnouncementParser`, `ObdPidParser`, `MediaSessionSelection`, `CameraProximity`,
+  `SettingsCodec`. **22 test suites / 131 assertions (verified 2026-09-07, all passing), run
+  via `./tools/run_tests.sh` or `./gradlew :core:runCoreTests`.**
+- **`wearos-app/`** — the real Wear OS Compose app (watch side). Real providers wired:
+  `WearDataLayerBluetoothProvider` (nav + media + blizzer transport, link state),
+  `BleObdVehicleDataProvider` (Car, non-debug), `DataStoreSettingsStore`. NFC is still a mock.
+- **`phone-app/`** — the Android companion. `NavigationAccessibilityService` (Maps/Waze turn
+  text), `MediaNotificationListenerService` + `WearInboundListenerService` (media),
+  `CameraProximityService` + `SpeedCameraRepository` (speed-camera GPS feed), `WearMessageSender`.
+  All send/receive over the Wear Data Layer on `/automotive-dashboard`.
+
+**Build (this machine):** `./gradlew clean :core:runCoreTests :wearos-app:assembleDebug
+:wearos-app:assembleRelease :phone-app:assembleDebug :phone-app:assembleRelease` → BUILD
+SUCCESSFUL (Gradle 9.3.0, JDK 25, AGP 8.13.2, Kotlin 2.1.10, Compose BOM 2025.10.01,
+compileSdk 36). Every phase below is code-complete + build-verified; the remaining work is
+**on-device verification** (0d + the per-phase device spikes).
 
 The core design principle: `core`'s interfaces are hardware-agnostic. Real implementations
 (`WearDataLayerBluetoothProvider`, a future `BleVehicleDataProvider`, etc.) live in the Android
@@ -129,6 +139,20 @@ Layer transport.
 - `wearos-app`: `BlizzerManager` now on `navPhoneCommunication` (real). `MockPhoneCommunication`
   on the watch is now used **only** by `DevControlPanel`.
 - No sound (decision #8). **Needs a device + a real camera dataset** to verify on the road.
+
+### Phase F — persistence + polish — 🟡 BUILD-VERIFIED
+- `core/domain/SettingsCodec` — pure `DashboardSettings` ↔ line format, forward-compatible
+  (unknown keys ignored, missing keys → defaults). 5 tests.
+- `wearos-app/hardware/DataStoreSettingsStore` — Jetpack DataStore behind `core`'s
+  `SettingsStore`: one `runBlocking` startup read + in-memory mirror + fire-and-forget
+  writes. `SettingsManager` unchanged. Wired in `MainActivity` (was `InMemorySettingsStore`).
+- `DevControlsScreen` uses Wear `ScalingLazyColumn`.
+- Adaptive launcher icons (vector "gauge", `mipmap-anydpi-v26`) on both apps.
+- `release` buildType on both modules (minify **off** for now — R8 is a low-risk
+  follow-up; the ⚙ dev entry already hides itself via `BuildConfig.DEBUG`).
+- **Deferred polish** (not blocking a functional product): a real settings *screen*;
+  moving dev-only code to `src/debug`; enabling R8; rotary input; Wear-native pager +
+  `HorizontalPageIndicator`.
 
 ## How to verify before changing anything
 
