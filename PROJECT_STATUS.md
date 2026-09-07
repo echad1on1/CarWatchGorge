@@ -15,8 +15,8 @@ Three Gradle modules:
   (`BluetoothProvider`, `VehicleDataProvider`, `PhoneCommunication`, etc.), managers
   (`ConnectionManager`, `NavigationManager`, `MediaManager`, `BlizzerManager`, `PowerManager`,
   `SettingsManager`), the wire protocol (`ProtocolMessage`/`MessageCodec`), and
-  `NavigationAnnouncementParser`. **19 test suites / 98 assertions (verified 2026-09-07 with
-  kotlinc 2.3.10, all passing), run via `./tools/run_tests.sh` or `./gradlew :core:runCoreTests`.**
+  `NavigationAnnouncementParser`. **18 test suites / 94 assertions (verified 2026-09-07, all
+  passing), run via `./tools/run_tests.sh` or `./gradlew :core:runCoreTests`.**
 - **`wearos-app/`** — the real Wear OS Compose app (watch side).
 - **`phone-app/`** — the real Android companion app (phone side), currently just
   `NavigationAccessibilityService` + a disclosure `MainActivity`.
@@ -32,41 +32,45 @@ Layer transport.
 | Panel | Spec | Status |
 |---|---|---|
 | **Car** | OBD-II/CAN data from a Bluetooth device wired to the vehicle console | 🔴 Mock only (`MockVehicleDataProvider`). **Decision locked**: watch connects *directly* to the vehicle's BLE adapter (not via phone relay). Real `BleVehicleDataProvider` not started. |
-| **Maps** | Turn info from phone, transported to watch | 🟡 Logic fully proven with real captured Google Maps data (parser handles English + Croatian, correctly ignores trip-total-distance traps). Transport (Wear Data Layer) **in progress** — see Phase B below. |
-| **Music** | Song info + visual audio representation, playback controls | 🔴 Mock only (`MockPhoneCommunication`/`MediaState`). Shows title/artist as text. No visualizer, no real `NotificationListenerService` session capture. Not started. |
-| **Blizzer** | Camera/hazard alerts, blinking overlay over all panels, color-coded by distance | 🟢 **Done** (Phase A, see below): 5 thresholds (2000/1000/500/200/100m), blue→green→red by distance, 5s auto-dismiss via `BlizzerManager`, no sound. Real camera/GPS data source not started (separate, later decision). |
+| **Maps** | Turn info from phone, transported to watch | 🟡 Logic proven with real captured Google Maps data (parser handles English + Croatian, ignores trip-total-distance traps). Transport (Wear Data Layer) **build-verified 2026-09-07**; Data Layer bugs fixed (see Phase B). Real-device announcement capture still unconfirmed. Decision: AccessibilityService kept. |
+| **Music** | Song info + visual audio representation, playback controls | 🔴 Mock only (`MockPhoneCommunication`/`MediaState`). Real `NotificationListenerService` + `MediaSessionManager` capture = Phase 1, not started. |
+| **Blizzer** | Camera/hazard alerts, blinking overlay over all panels, color-coded by distance | 🟡 Overlay + auto-dismiss done, **5-tier** colours (2000/1000/500/200/100 m, blue→green→amber→red via `BlizzerProximity`), no sound. Real GPS + camera-POI feed (phone side) = Phase 4, not started. |
 
 ## Phase tracker
 
-### Phase A — Blizzer color + auto-dismiss + thresholds — ✅ DONE
-- `core`: `BlizzerSeverity`/`BlizzerSeverityMapper` (pure, tested), `BlizzerManager` gained
-  `autoDismissMillis` (default 5000) + `dismissCurrentEvent()`.
-- `wearos-app`: `BlizzerOverlay.kt` maps severity → color (blue/green/red) and blink speed.
-  `DevControlsScreen.kt` has all 5 threshold buttons.
-- Sound: `BlizzerAudioManager` exists and is tested, but is **not started** in `MainActivity` —
-  confirmed via `grep -n "blizzerAudioManager" MainActivity.kt` returning nothing. "No sound" is
-  satisfied by omission, not an explicit disable — if someone adds `blizzerAudioManager.start()`
-  later, they need to know this decision first.
-- Tests: `BlizzerSeverityTests.kt`, `BlizzerAutoDismissTests.kt`, both passing.
+### Phase A — Blizzer color + auto-dismiss + thresholds — ✅ DONE (5-tier as of 2026-09-07)
+- `core`: `BlizzerProximity` (pure, tested) is the **single** colour/blink source —
+  5 tiers, thresholds 2000/1000/500/200/100 m, blue→green→amber→red. The old 3-tier
+  `BlizzerSeverity`/`BlizzerSeverityMapper` was **deleted** (decision #9 in `PLAN.md`).
+  `BlizzerManager` has `autoDismissMillis` (default 5000) + `dismissCurrentEvent()`.
+- `wearos-app`: `BlizzerOverlay.kt` turns `BlizzerProximity.colorArgbFor()` into a Compose
+  `Color`; `DevControlsScreen.kt` has all 5 threshold buttons.
+- Sound: `BlizzerAudioManager` exists and is tested but is **not started** in `MainActivity`
+  ("no sound" by omission — a deliberate decision; see `PLAN.md` decision #8).
+- Tests: `BlizzerProximityTests.kt`, `BlizzerAutoDismissTests.kt`, passing.
 
-### Phase B — Maps transport (Wear Data Layer, phone → watch) — 🟡 IN PROGRESS
-Files that must exist and agree with each other (this is where the conflict happened):
-- `wearos-app/.../hardware/WearDataLayerBluetoothProvider.kt` — package `com.dashboard.wearos.hardware`,
-  **singleton** via `getInstance(context)`, implements `core`'s `BluetoothProvider`.
-- `wearos-app/.../hardware/NavDataListenerService.kt` — same package, a `WearableListenerService`
-  registered in `AndroidManifest.xml` for `com.google.android.gms.wearable.MESSAGE_RECEIVED`
-  scoped to path `/automotive-dashboard/nav`.
-- `wearos-app/MainActivity.kt` — uses `WearDataLayerBluetoothProvider.getInstance(this)` as
-  **both** `ConnectionManager`'s real transport (real NFC-tap → real link state) **and**
-  `BluetoothPhoneCommunication`'s transport for the real `NavigationManager`. Music/Blizzer still
-  use a separate `MockPhoneCommunication` instance — this is intentional, not a bug: those
-  subsystems aren't real yet.
-- `phone-app/.../WearMessageSender.kt` — method name is **`sendNavUpdate`** (not `send`) — this
-  was the second mismatch found. `NavigationAccessibilityService.kt` calls `sendNavUpdate`.
-- Both `build.gradle.kts` files have `com.google.android.gms:play-services-wearable:20.0.0`.
-- **Status as of last check**: package/API mismatches between the provider files and
-  `MainActivity`/`WearMessageSender` were just fixed. **Not yet build-verified** — waiting on the
-  user to sync + run both apps and report back.
+### Phase B — Maps transport (Wear Data Layer, phone → watch) — 🟡 BUILD-VERIFIED, device pending
+- **All three modules compile and assemble** (`./gradlew :core:runCoreTests
+  :wearos-app:assembleDebug :phone-app:assembleDebug` → BUILD SUCCESSFUL, 2026-09-07, on
+  Gradle 9.3 / JDK 25 / AGP 8.13.2). See `PLAN.md` Phase 0c for the version stack.
+- `wearos-app/.../hardware/WearDataLayerBluetoothProvider.kt` — package
+  `com.dashboard.wearos.hardware`, singleton `getInstance(context)`, implements
+  `core`'s `BluetoothProvider`. **Rewritten 2026-09-07**: fully async (no main-thread
+  `Tasks.await`), live `CapabilityClient` listener for link state, 8-frame replay buffer,
+  capability-scoped `send()`. Path prefix `/automotive-dashboard` (any sub-path).
+- `wearos-app/.../hardware/NavDataListenerService.kt` — same package, `WearableListenerService`
+  registered for `MESSAGE_RECEIVED` on `pathPrefix="/automotive-dashboard"`. Creates the
+  singleton via `applicationContext` on cold start.
+- `wearos-app/src/main/res/values/wear.xml` + `phone-app/.../res/values/wear.xml` — Data Layer
+  capability declarations (`automotive_dashboard_watch` / `_phone`).
+- `wearos-app/MainActivity.kt` — `WearDataLayerBluetoothProvider.getInstance(this)` is **both**
+  `ConnectionManager`'s transport and `BluetoothPhoneCommunication`'s transport for
+  `NavigationManager`. Music/Blizzer still on `MockPhoneCommunication` (Phases 1 & 4).
+- `phone-app/.../WearMessageSender.kt` — `sendNavUpdate` **kept** (past conflict point) as an
+  alias of the new generic `send()`; resolves the watch node by capability.
+- Dependency: `com.google.android.gms:play-services-wearable:19.0.0` in both modules.
+- **Still needs a real paired device** to confirm cross-package `MessageClient` delivery and
+  live link-state transitions.
 
 ### Phase C — Car panel (watch-side BLE, direct to vehicle OBD-II/CAN adapter) — 🔴 NOT STARTED
 **Decision locked**: watch connects directly to the vehicle's Bluetooth adapter (not phone-relayed).
@@ -89,13 +93,19 @@ transport work, not yet started.
 Run these and read the actual output — don't assume from this doc or any chat summary:
 
 ```bash
-./tools/run_tests.sh                                    # core — should show all passing, note the count
+# Full build gate (JAVA_HOME must be a JDK 21–25; this repo builds on 25 + Gradle 9.3 + AGP 8.13.2)
+./gradlew :core:runCoreTests :wearos-app:assembleDebug :phone-app:assembleDebug
+
+./tools/run_tests.sh                                    # core only, via standalone kotlinc — note the count
 find wearos-app/src/main/kotlin/com/dashboard/wearos/hardware -type f
 grep -n "class BlizzerManager" -A3 core/src/main/kotlin/com/dashboard/core/service/BlizzerManager.kt
 grep -n "WearDataLayerBluetoothProvider\|getInstance" wearos-app/src/main/kotlin/com/dashboard/wearos/MainActivity.kt
 grep -n "fun send" phone-app/src/main/kotlin/com/dashboard/phoneapp/WearMessageSender.kt
 grep -n "NavDataListenerService" wearos-app/src/main/AndroidManifest.xml
 ```
+
+Full plan, phase detail, risk register, and open decisions live in **`PLAN.md`** — keep the
+two files consistent.
 
 ## Update this file
 

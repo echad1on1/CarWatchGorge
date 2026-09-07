@@ -14,6 +14,9 @@ tracker, this is the full plan with file-level detail.
 |---|---|---|
 | 2026-09-07 | Initial plan created from a full-repo + environment audit. | Claude (Plan agent) |
 | 2026-09-07 | **Phase 0b done.** `core/bin/` (60 committed dupes) removed from git; `tools/run_tests.sh` green on this machine with bundled kotlinc 2.3.10 — **19 suites / 98 assertions, 0 errors, 0 required fixes** (3 harmless `!!` warnings left as-is); `ConsoleDemo` runs end-to-end. Added `runCoreTests` Gradle task + `check` hook to `core/build.gradle.kts` and migrated its deprecated `kotlinOptions` → `compilerOptions` DSL. Added `.github/workflows/build.yml` (core job + an android job that stays red until 0c). Corrected the "63"/"91+" test counts and the stale "no Android SDK on this machine" claims in `README.md` / `PROJECT_STATUS.md` / `wearos-app/README.md`. | Claude |
+| 2026-09-07 | **Phase 0c done — and it built here, no Android Studio needed.** This machine has network to Google Maven + Maven Central and Gradle 9.3.0 runs on JDK 25. Resolved every fictitious dependency version against the real repos; **AGP 8.9.1 → 8.13.2**, **Compose BOM `2026.05.00` → `2025.10.01`** (newer BOMs demand AGP 9.1 + compileSdk 37), `play-services-wearable 20.0.0 → 19.0.0`, `lifecycle 2.9.0 → 2.9.4`, `core-ktx 1.13.1 → 1.16.0`, dropped the pinned `ui-tooling` versions (BOM governs), Wear Compose stayed 1.6.2 (already the latest stable). `kotlinOptions` → `compilerOptions` in both app modules. **`./gradlew :core:runCoreTests :wearos-app:assembleDebug :phone-app:assembleDebug` → BUILD SUCCESSFUL** — first successful compile of either Android module in the project's history. `local.properties` recreated in the worktree (gitignored). | Claude |
+| 2026-09-07 | **Blizzer 5-tier consolidation (decision #9).** Deleted `BlizzerSeverity.kt` + `BlizzerSeverityTests.kt`, removed the suite from `AllTests.kt`; `BlizzerOverlay.kt` rewritten to use `BlizzerProximity` (blue→green→amber→red across 2000/1000/500/200/100 m) and the missing `getValue` import added. Core suite now **18 suites / 94 assertions**, green. | Claude |
+| 2026-09-07 | **Phase 0e (Data Layer bugs) — fixed and compiling.** `WearDataLayerBluetoothProvider` rewritten: no more main-thread `Tasks.await` (all async `Task` callbacks — safe to call from `onNfcTap`), a live `CapabilityClient` listener drives link state on later phone connect/disconnect, an 8-frame replay buffer covers the cold-start race, `send()` resolves the target node by capability instead of broadcasting. `NavDataListenerService` now creates the singleton via `applicationContext`. Added `res/values/wear.xml` capability decls to **both** apps (`automotive_dashboard_watch` / `_phone`). `phone-app/WearMessageSender` rewritten to resolve the watch by capability; `sendNavUpdate` kept as an alias, generic `send()` added. Both apps still `assembleDebug` clean. **Still needs a real device to confirm cross-package delivery + link-state behaviour.** | Claude |
 
 ---
 
@@ -21,12 +24,22 @@ tracker, this is the full plan with file-level detail.
 
 | Phase | Title | Status |
 |---|---|---|
-| 0 | Environment & build verification | 🟡 In progress — 0b done; 0a/0c/0d/0e need Android Studio |
+| 0 | Environment & build verification | 🟡 0b + 0c + 0e done (all 3 modules build here). 0d = emulator/device walkthrough (user) |
 | 1 | Music — real now-playing + controls + waveform | 🔴 Not started |
-| 2 | Maps — verify capture, harden parser | 🔴 Not started |
+| 2 | Maps — harden parser (AccessibilityService kept, per decision #4) | 🔴 Not started |
 | 3 | Car — watch-side BLE OBD-II | 🔴 Not started (parser doable now) |
-| 4 | Blizzer — real GPS + camera-POI feed | 🔴 Not started (proximity math doable now) |
+| 4 | Blizzer — real GPS + camera-POI feed | 🟡 5-tier colour consolidation done; real feed not started |
 | 5 | Persistence & polish | 🔴 Not started |
+
+### Locked decisions (2026-09-07)
+
+- **#4 Maps capture:** keep the AccessibilityService (not the notification pivot).
+- **Distribution:** standalone watch app, hardcoded/preinstalled on the in-car device; the
+  phone companion just feeds it when connected. No Play Store ceremony, OSM camera data.
+- **#9 Blizzer colours:** 5-tier (`BlizzerProximity`) — done.
+- **Voice cues:** none — `AudioOutput` stays the mock; visual nav only.
+- **Build toolchain (this machine):** Gradle 9.3.0 + JDK 25 + AGP 8.13.2 + Kotlin 2.1.10 +
+  Compose BOM 2025.10.01 + compileSdk 36. Verified building.
 
 Panel data sources today: **Car** mock · **Maps** transport wired (unbuilt) · **Music** mock ·
 **Blizzer** watch/core done, no real feed.
