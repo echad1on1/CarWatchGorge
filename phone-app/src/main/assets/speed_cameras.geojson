@@ -1,0 +1,12 @@
+{
+  "type": "FeatureCollection",
+  "note": "Sample speed-camera POIs for development. Replace with a real OpenStreetMap extract (highway=speed_camera / enforcement=*, ODbL — keep attribution). Coordinates are [lon, lat].",
+  "features": [
+    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [15.9660, 45.8009] }, "properties": { "id": "zg-1", "name": "Slavonska avenija" } },
+    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [15.9819, 45.8003] }, "properties": { "id": "zg-2", "name": "Vukovarska" } },
+    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [16.0170, 45.8065] }, "properties": { "id": "zg-3", "name": "Slavonska avenija istok" } },
+    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [15.9430, 45.8210] }, "properties": { "id": "zg-4", "name": "Ilica" } },
+    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [15.9700, 45.7790] }, "properties": { "id": "zg-5", "ref": "A3" } },
+    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [16.0360, 45.7600] }, "properties": { "id": "zg-6", "ref": "A3 / Ivanja Reka" } }
+  ]
+}

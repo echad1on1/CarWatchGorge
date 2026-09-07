@@ -57,8 +57,9 @@ class MainActivity : ComponentActivity() {
         // MediaNotificationListenerService sends MediaUpdate frames; MediaManager.play()/etc.
         // send MediaCommandMessage frames the phone's WearInboundListenerService acts on.
         val mediaManager = MediaManager(navPhoneCommunication)
-        // Blizzer still on the mock until its real GPS/camera-POI feed lands (Phase 4).
-        val blizzerManager = BlizzerManager(mockPhoneCommunication)
+        // Real camera-proximity alerts over the Data Layer (Phase 4): the phone's
+        // CameraProximityService sends BlizzerTrigger frames as the driver nears a known camera.
+        val blizzerManager = BlizzerManager(navPhoneCommunication)
         val settingsManager = SettingsManager(settingsStore)
 
         // Feeds the vehicle's live speed into NavigationManager so distance-to-next-turn counts
