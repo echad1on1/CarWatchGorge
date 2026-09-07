@@ -15,8 +15,9 @@ Three Gradle modules:
   (`BluetoothProvider`, `VehicleDataProvider`, `PhoneCommunication`, etc.), managers
   (`ConnectionManager`, `NavigationManager`, `MediaManager`, `BlizzerManager`, `PowerManager`,
   `SettingsManager`), the wire protocol (`ProtocolMessage`/`MessageCodec`), and
-  `NavigationAnnouncementParser`. **19 test suites / 111 assertions (verified 2026-09-07, all
-  passing), run via `./tools/run_tests.sh` or `./gradlew :core:runCoreTests`.**
+  `NavigationAnnouncementParser`, `ObdPidParser`, `MediaSessionSelection`. **20 test suites /
+  119 assertions (verified 2026-09-07, all passing), run via `./tools/run_tests.sh` or
+  `./gradlew :core:runCoreTests`.**
 - **`wearos-app/`** — the real Wear OS Compose app (watch side).
 - **`phone-app/`** — the real Android companion app (phone side), currently just
   `NavigationAccessibilityService` + a disclosure `MainActivity`.
@@ -31,7 +32,7 @@ Layer transport.
 
 | Panel | Spec | Status |
 |---|---|---|
-| **Car** | OBD-II/CAN data from a Bluetooth device wired to the vehicle console | 🔴 Mock only (`MockVehicleDataProvider`). **Decision locked**: watch connects *directly* to the vehicle's BLE adapter (not via phone relay). Real `BleVehicleDataProvider` not started. |
+| **Car** | OBD-II/CAN data from a Bluetooth device wired to the vehicle console | 🟡 Pure `ObdPidParser` done + tested (8 tests). `BleObdVehicleDataProvider` + `ObdGattProfile` + `VehicleProviderFactory` written and **build-verified** (mock in debug, BLE in release). Watch connects *directly* to the vehicle's BLE ELM327 adapter. **Needs a real dongle** to verify scan/GATT/AT-init. |
 | **Maps** | Turn info from phone, transported to watch | 🟡 Parser hardened 2026-09-07 (U-turn/merge/ramp/slight/sharp, imperial + `1,5` decimals, more Croatian — 20 tests). Transport **build-verified**; Data Layer bugs fixed (Phase B). `Direction` enum gained `U_TURN/MERGE/EXIT_LEFT/EXIT_RIGHT`. Decision: AccessibilityService kept. Real-device announcement capture still unconfirmed (the one open spike). |
 | **Music** | Song info + visual audio representation, playback controls | 🟡 Real pipe **built + build-verified 2026-09-07**: phone `MediaNotificationListenerService` → `MediaState` over Data Layer → `MediaManager` (real, not mock); watch `⏮⏯⏭` → `MediaCommandMessage` → phone `WearInboundListenerService` → `transportControls`. Decorative waveform + progress bar on `MusicScreen`. Session selection is pure/tested (`MediaSessionSelection`). Needs a device + notification-access grant to confirm. |
 | **Blizzer** | Camera/hazard alerts, blinking overlay over all panels, color-coded by distance | 🟡 Overlay + auto-dismiss done, **5-tier** colours (2000/1000/500/200/100 m, blue→green→amber→red via `BlizzerProximity`), no sound. Real GPS + camera-POI feed (phone side) = Phase 4, not started. |
@@ -72,14 +73,27 @@ Layer transport.
 - **Still needs a real paired device** to confirm cross-package `MessageClient` delivery and
   live link-state transitions.
 
-### Phase C — Car panel (watch-side BLE, direct to vehicle OBD-II/CAN adapter) — 🔴 NOT STARTED
-**Decision locked**: watch connects directly to the vehicle's Bluetooth adapter (not phone-relayed).
-Plan: `BleVehicleDataProvider` (wearos-app) implementing `core`'s `VehicleDataProvider`, BLE GATT
-scan/connect/subscribe against an ELM327-style OBD-II PID interface (recommended over a custom
-protocol — standard, documented), auto-connect wired into `PowerManager`'s `onActive`/`onSleep`
-(already scaffolded), `BLUETOOTH_SCAN`/`BLUETOOTH_CONNECT` runtime permissions. Not
-device-testable here — plan is to add unit tests for the OBD-II PID *parsing* logic only (pure
-functions), verified without hardware.
+### Phase C — Car panel (watch-side BLE, direct to vehicle OBD-II/CAN adapter) — 🟡 BUILD-VERIFIED, dongle pending
+- `core/vehicle/ObdPidParser` — pure ELM327-response parsing + Mode-01 PID decoders +
+  `toVehicleData` (absent PIDs → `Signal.Unavailable`; gear + oil pressure never come from
+  OBD-II). 8 tests, no hardware needed.
+- `wearos-app/hardware/vehicle/`:
+  - `ObdGattProfile` — 3 candidate GATT layouts (FFF0/FFF1/FFF2, FFE0/FFE1 combined, 18F0),
+    AT init sequence, device-name hints. One-file change to support a different dongle.
+  - `BleObdVehicleDataProvider` — implements `VehicleDataProvider`; scan → connect → discover
+    → enable notify → AT init → round-robin `01XX` poll → emit `VehicleData`, with backoff
+    reconnect. `@SuppressLint("MissingPermission")` (perms requested in `MainActivity`).
+  - `VehicleProviderFactory` — `MockVehicleDataProvider` in `BuildConfig.DEBUG` (keeps the dev
+    "drive" control + `TESTING.md` working), `BleObdVehicleDataProvider` otherwise.
+- `MainActivity` — `VehicleProviderFactory.create(this)`; runtime `BLUETOOTH_SCAN`/`CONNECT`
+  request (non-debug only). `PowerManager.onActive/onSleep` already call `start()/stop()`.
+- `DevControlPanel.vehicleProvider` is now `MockVehicleDataProvider?` — `setTargetSpeedKmh` is
+  a no-op on a real link.
+- Manifest: `bluetooth_le` feature, `BLUETOOTH_SCAN` (`neverForLocation`) + `BLUETOOTH_CONNECT`
+  + the `maxSdkVersion=30` legacy trio.
+- **Needs a real ELM327 BLE dongle** (or a bench ECU simulator) to verify scan/GATT/init.
+  Radio-concurrency question (watch↔dongle **and** watch↔phone at once) is still open — if it
+  fails, the fallback is phone-relayed OBD (a bigger change).
 
 ### Phase D — Music (visual audio representation + real session) — 🟡 BUILD-VERIFIED, device pending
 - `core`: `MediaSessionSelection` / `SessionSnapshot` — pure "which session do we mirror" rule
