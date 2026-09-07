@@ -1,161 +1,138 @@
 # automotive-dashboard
 
-A software-first automotive dashboard for a watch/display mounted permanently inside a car.
-The physical hardware (casing, NFC reader, vehicle interface, Bluetooth radio, audio wiring,
-power circuitry) doesn't exist yet. This repo builds the **complete application and
-architecture** against clean hardware interfaces, backed by mocks/simulators, so that real
-hardware can be plugged in later without rewriting the app.
+A software-first automotive dashboard for a Wear OS watch/display mounted permanently inside a
+car, with an Android phone companion that feeds it live data over the Wear OS Data Layer. The
+final physical hardware (casing, mount, wiring) doesn't exist yet — the app is built against
+clean hardware interfaces so real adapters plug in without rewriting anything above them.
 
-## Target platform decision
+**Status (2026-09-07): all planned features are implemented and the whole project builds** —
+`core` + both Android apps, debug and release. What's left is verification on real
+devices/hardware. See [`PLAN.md`](PLAN.md) for the full phase-by-phase history and the
+on-device checklist, and [`PROJECT_STATUS.md`](PROJECT_STATUS.md) for the terse per-panel
+tracker.
 
-The eventual device is a small programmable watch/display. The most realistic hardware for
-that form factor today is **Wear OS (Android/Kotlin)** — it's the only mainstream embedded-watch
-platform with mature Bluetooth, NFC, and audio-routing APIs, and it lets the dashboard app be
-built with Jetpack Compose for a small round/square display.
+## Architecture
 
-> **Build-environment note (updated 2026-09-07):** the paragraph below describes the
-> *original* build sandbox. The current development machine **does** have the Android SDK,
-> Android Studio (with a bundled `kotlinc` and a Wear OS system image + AVDs), so Phases
-> 0b–0e of `PLAN.md` are unblocked here. The core/wearos split described below still stands
-> on its own architectural merits and is not going away.
+Three Gradle modules:
 
-**Originally**, the development sandbox had no Android SDK and no network access to Google's
-Maven repository (`dl.google.com`) or Gradle's distribution service, so an Android Gradle build
-could not be *run* there. To avoid wasting the session on infrastructure that couldn't be
-verified, the project is split in two:
+- **`core/`** — pure Kotlin/JVM, **zero Android dependency**. Domain models, the hardware
+  interfaces (`VehicleDataProvider`, `PhoneCommunication`, `BluetoothProvider`, `AudioOutput`,
+  `SettingsStore`, …), the managers (`ConnectionManager`, `NavigationManager`, `MediaManager`,
+  `BlizzerManager`, `PowerManager`, `SettingsManager`), the wire protocol
+  (`ProtocolMessage` / `MessageCodec`), and the pure algorithm code:
+  `NavigationAnnouncementParser`, `ObdPidParser`, `MediaSessionSelection`, `CameraProximity`,
+  `SettingsCodec`. **22 test suites / 131 assertions**, all passing.
+- **`wearos-app/`** — the Wear OS Jetpack Compose UI. Presentation only, wired to `core`'s
+  managers, plus the watch-side real hardware implementations
+  (`WearDataLayerBluetoothProvider`, `BleObdVehicleDataProvider`, `DataStoreSettingsStore`).
+- **`phone-app/`** — the Android companion. Captures navigation, media and location data and
+  sends it to the watch over the Data Layer.
 
-- **`core/`** — pure, dependency-free Kotlin (JVM target). All domain models, hardware
-  interfaces, mocks/simulators, and service logic (state machines, managers) live here. Zero
-  Android dependency. Compiles, runs, and is **fully unit tested today** via `kotlinc` +
-  `kotlin` directly (`tools/run_tests.sh`) or through Gradle (`./gradlew :core:runCoreTests`)
-  — see "How to test" below.
-- **`wearos-app/`** — the real Wear OS Compose UI, wired to `core`. Written against real,
-  sourced Wear OS Compose APIs, but **not yet build-verified** — see `wearos-app/README.md` for
-  exactly what that means and what to check first when this is opened in Android Studio.
-
-Both modules have proper `build.gradle.kts` files and a root `settings.gradle.kts`, so opening
-the whole repo in Android Studio should work directly — `core` builds as a plain Kotlin/JVM
-library module, `wearos-app` as the Android application module that depends on it.
-
-This split is exactly the hardware-independence the product spec asks for, just drawn one layer
-higher: `core` doesn't know about Android *or* real hardware. Only `wearos-app` knows about
-Android, and only concrete hardware implementations (a later step — see
-`docs/android-integration-research.md`) will know about NFC/Bluetooth/OBD-II/CAN/audio APIs.
-
-## Project structure
-
-```
-automotive-dashboard/
-  settings.gradle.kts, build.gradle.kts    Root Gradle project (see wearos-app/README.md re: build status)
-  core/
-    build.gradle.kts                       Plain Kotlin/JVM module, zero dependencies
-    src/main/kotlin/com/dashboard/core/
-      domain/          VehicleData, ConnectionState, NavigationState, MediaState,
-                        BlizzerEvent, DashboardSettings, PowerState — plain data, no logic
-      hardware/         VehicleDataProvider, NfcProvider, BluetoothProvider, AudioOutput,
-                        PowerProvider, PhoneCommunication, SettingsStore — interfaces only,
-                        the "hardware contract" the UI is never allowed to bypass
-      hardware/mock/    Mock*/Simulated implementations of every interface above, plus
-                        LoopbackBluetoothProvider (a paired test double for the transport)
-      communication/    ProtocolMessage (wire contract), MessageCodec (encode/decode),
-                        DomainMapping (wire <-> domain conversions), BluetoothPhoneCommunication
-                        (the real PhoneCommunication impl, works over any BluetoothProvider)
-      service/          ConnectionManager, VehicleDataManager, NavigationManager,
-                        NavigationAudioManager, MediaManager, BlizzerManager, SettingsManager,
-                        PowerManager, DevControlPanel — one manager per subsystem, each the
-                        single thing its panel is allowed to depend on
-      demo/             ConsoleDemo — text-mode stand-in for the real UI, composes the whole
-                        app exactly like wearos-app's MainActivity does
-    src/test/kotlin/com/dashboard/core/
-      testing/          Tiny hand-rolled assertion/test-suite harness (see note below)
-      tests/            19 suites / 98 assertions across every manager, the codec, end-to-end
-  wearos-app/           Real Jetpack Compose Wear OS UI — see wearos-app/README.md for status
-  docs/
-    android-integration-research.md   Sourced research on what Android actually permits for
-                                       Media, Navigation, NFC, and the phone-communication
-                                       transport — every claim marked confirmed/restricted/
-                                       requires-a-companion-app/needs-further-research
-  tools/                Shell scripts to compile/run/test core without needing Gradle
-```
-
-### Why a hand-rolled test harness instead of JUnit?
-
-This sandbox can reach GitHub (to download the Kotlin compiler itself) but not Maven Central,
-so JUnit/Kotest can't be pulled in here. `core/src/test/kotlin/.../testing/TestHarness.kt` is a
-~40-line assertion/suite runner. Test bodies are plain functions (`test("name") { ... }`), so
-migrating to JUnit5 once this project is opened in Android Studio (with normal Maven access) is
-a mechanical rename, not a rewrite.
-
-## How to run
-
-**Want to test the whole app on a Wear OS emulator with zero physical hardware and zero paired
-phone? See [`TESTING.md`](TESTING.md)** — it's a step-by-step walkthrough of the entire spec'd
-user journey, using the real Compose UI, with a checklist you can follow directly on an emulator.
-
-The quick text-console version (no Android needed at all):
-
-```
-tools/run_demo.sh
-```
-
-Compiles `core` and runs `ConsoleDemo`, which composes the **entire** app (Car, Maps, Music,
-Blizzer, Settings, Power, and the developer-control facade) exactly the way `wearos-app`'s
-`MainActivity` does, and walks through the full spec'd user journey: dashboard boots with live
-vehicle data → Blizzer overlays the Car panel → simulated NFC tap connects the phone → Maps and
-Music become available → navigation updates with a turn-by-turn audio cue → music is controlled
-→ Blizzer overlays Maps/Music the same way it did Car → phone disconnects, back to Car-only →
-simulated ignition-off puts the dashboard to sleep.
-
-## How to test
-
-```
-tools/run_tests.sh            # needs kotlinc + kotlin on PATH
-./gradlew :core:runCoreTests  # same suite, no standalone kotlinc needed (once Gradle is set up)
-```
-
-Compiles and runs all **19 suites (98 assertions)**: domain models (never-fabricate-unavailable-values
-guarantee), every manager (`ConnectionManager`'s full state machine including the
-tap-while-connecting no-op and failed-handshake `ERROR` recovery; `VehicleDataManager`,
-`NavigationManager`, `MediaManager`, `BlizzerManager`'s late-subscriber caching;
-`NavigationAudioManager`'s change-only audio firing; `SettingsManager`'s persistence;
-`PowerManager`'s ACTIVE/SLEEP/WAKE dispatch), the wire protocol (`MessageCodec` round-trips,
-plus `BluetoothPhoneCommunication` tested over a genuine `LoopbackBluetoothProvider` transport,
-not just in-process calls), and one end-to-end test walking the entire user journey.
+The design principle: `core`'s interfaces are hardware-agnostic. Real implementations live in
+the Android modules and plug into `core`'s existing managers with **zero changes to `core`**.
+This held up across every phase — the only `core` additions were new pure algorithm files
+(`ObdPidParser`, `CameraProximity`, …), never interface changes.
 
 ## What's implemented
 
-Everything through the full simulated-hardware software system described in the spec:
+### Watch (`wearos-app`)
+- **Four swipeable panels** — Car, Maps, Music (+ a global Blizzer overlay). Maps/Music only
+  appear once the phone is connected; disconnecting snaps back to Car.
+- **Car** — live vehicle data from a **BLE OBD-II (ELM327) adapter** in release builds
+  (`BleObdVehicleDataProvider`: scan → GATT → AT init → round-robin PID poll → `VehicleData`);
+  a realistic simulator in debug builds so it runs with no hardware.
+- **Maps** — turn-by-turn arrow / distance / road name / ETA, driven by the phone; distance
+  counts down smoothly between checkpoints using the car's own speed.
+- **Music** — now-playing title/artist, a decorative waveform + progress bar, and working
+  ⏮ ⏯ ⏭ transport controls that drive the phone's actual media session.
+- **Blizzer** — a full-screen speed-camera proximity overlay, blue → green → amber → red
+  across five distance bands (2000 / 1000 / 500 / 200 / 100 m), auto-dismissing after 5 s.
+- **Settings** persist on-disk via Jetpack DataStore (`DataStoreSettingsStore`).
+- **Connection** state machine (`ConnectionManager`), driven by the real Data Layer link
+  (`CapabilityClient` tracks the phone appearing/disappearing).
+- Adaptive launcher icon; `release` build type (the ⚙ dev-controls screen is debug-only).
 
-- Tech-stack decision, Gradle project skeleton for both modules
-- All domain models, all six hardware interfaces (+ `SettingsStore`)
-- `ConnectionManager` — the full CAR_ONLY/NFC_DETECTED/CONNECTING/CONNECTED/DISCONNECTING/ERROR
-  state machine
-- Car panel (`VehicleDataManager` + a realistic gradually-changing vehicle simulator)
-- Maps panel (`NavigationManager` + `NavigationAudioManager`, sounds decoupled from the UI)
-- Music panel (`MediaManager` — play/pause/next/previous, no dependency on any specific app)
-- Blizzer (`BlizzerManager` — a true global overlay with zero panel-awareness)
-- The full communication protocol (`ProtocolMessage`/`MessageCodec`/`BluetoothPhoneCommunication`),
-  proven over a real (loopback) transport, not just asserted
-- Settings (`SettingsManager`, persistence-independent) and Power (`PowerManager`, drives the
-  rest of the app's start/stop)
-- `DevControlPanel` — every developer control from the spec behind one facade
-- The real Wear OS Compose UI (`wearos-app/`) — written, not yet build-verified (see its README)
-- Sourced research on real Android/phone integration capabilities and limits
+### Phone (`phone-app`)
+- **Navigation** — `NavigationAccessibilityService` reads Google Maps / Waze turn text →
+  `NavigationAnnouncementParser` (English + Croatian, imperial + metric, ~20 phrasings) →
+  encoded checkpoints to the watch.
+- **Media** — `MediaNotificationListenerService` reads whatever app is playing via
+  `MediaSessionManager`; `WearInboundListenerService` applies the watch's transport commands.
+- **Speed cameras** — `CameraProximityService` (foreground GPS) + `SpeedCameraRepository`
+  (OpenStreetMap-shaped GeoJSON) → distance thresholds → alerts to the watch.
+- One setup screen with the three permission grants (Accessibility, Notification access,
+  Location).
 
-## What's next
+### `core` (pure, fully tested)
+Everything above the hardware line: the managers, the state machines, the wire protocol
+proven over a real loopback transport, and the pure algorithms
+(OBD PID decoding, haversine + camera-threshold logic with hysteresis, media-session
+selection, nav-text parsing, settings serialization).
 
-1. **Verify `wearos-app` actually builds** in Android Studio and fix whatever the first Gradle
-   sync flags (see `wearos-app/README.md`'s "What still needs doing" section).
-2. **Resolve the open platform question from `docs/android-integration-research.md`**: if Wear
-   OS is confirmed as the real target, `BluetoothProvider` should likely become a Data-Layer-API
-   -shaped interface instead of raw BLE bytes, since Google's own guidance says not to open raw
-   Bluetooth sockets between a Wear OS watch and its paired phone.
-3. **Build real hardware implementations** one at a time, per the research doc's findings —
-   Media is realistically achievable via `NotificationListenerService` + `MediaSessionManager`;
-   Navigation needs a real product decision first (there's no generic API for reading an
-   arbitrary nav app's turn-by-turn state, unlike Media).
-4. **Real swipe gestures, launcher icon, and UI polish** in `wearos-app` (currently tap/long-press
-   placeholders — noted inline in the code).
-5. **Persist settings for real** (Android DataStore) behind the existing `SettingsStore`
-   interface — no consumer of `SettingsManager` needs to change.
+## Build & test
 
+Builds headlessly (no Android Studio needed) with **JDK 17–25, Gradle 9.3, AGP 8.13.2**:
+
+```bash
+export JAVA_HOME=<a JDK 17-25>
+./gradlew :core:runCoreTests \
+          :wearos-app:assembleDebug :wearos-app:assembleRelease \
+          :phone-app:assembleDebug :phone-app:assembleRelease
+```
+
+`core` tests alone, either way:
+
+```bash
+tools/run_tests.sh            # needs kotlinc + kotlin on PATH
+./gradlew :core:runCoreTests  # no standalone kotlinc needed
+```
+
+Text-console walkthrough of the whole app with no Android at all: `tools/run_demo.sh`.
+Wear OS emulator walkthrough (real UI, no phone/hardware): [`TESTING.md`](TESTING.md).
+
+## Next steps
+
+All remaining work is **verification on real devices** — no feature code is outstanding.
+Full detail + ordering in `PLAN.md` → "On-device verification checklist". In short:
+
+1. **Wear emulator smoke test** — install the debug build, walk `TESTING.md`. Fix any Wear
+   Compose API drift the first run flags.
+2. **Paired phone** — pair a phone AVD (or a real phone) with the watch, confirm the Data
+   Layer link and connection state transitions.
+3. **Maps capture (biggest unknown)** — on a real phone, confirm Google Maps turn text is
+   actually readable **while Maps is backgrounded / screen off** during a drive. If not, the
+   capture strategy needs revisiting.
+4. **Music** — grant Notification access, confirm a real Spotify/YouTube-Music session shows
+   on the watch and the transport buttons drive it.
+5. **Car** — with a real OBD adapter (below), confirm scan/connect/PID polling; **also test
+   whether the watch can hold the OBD link *and* the phone link at once**.
+6. **Blizzer** — swap in a real regional camera dataset, grant location, drive past a known
+   camera.
+7. **Signing** — add a signing config so the `release` APKs can actually be installed.
+
+Deferred polish (not blocking a working product): a settings screen, moving dev-only code to
+`src/debug`, enabling R8/minify, rotary-crown input.
+
+## Hardware needed
+
+| For | Hardware | Notes |
+|---|---|---|
+| Running the watch app | A **Wear OS 4/5 watch** (or a Wear OS emulator, API 34/35) | `minSdk 30`. Standalone — no phone needed for the Car panel + dev controls. |
+| Maps / Music / Blizzer | An **Android phone** (or phone AVD) running `phone-app`, paired to the watch | `minSdk 26`. Google Maps or Waze installed for navigation. |
+| Car panel (real data) | A **Bluetooth LE OBD-II adapter** (ELM327-style — e.g. Veepeak BLE, Vgate iCar Pro BLE) plugged into the car's OBD-II port | Classic-Bluetooth-only ("SPP") adapters won't work — it must be **BLE**. A bench ECU/ELM327 simulator works for testing without a car. |
+| Blizzer data | A speed-camera POI dataset for your region | OpenStreetMap `highway=speed_camera` / `enforcement=*` extract (ODbL — keep attribution). The bundled `phone-app/src/main/assets/speed_cameras.geojson` is a 6-point sample only. |
+| Audio cues (not built) | Bluetooth A2DP to the car stereo, or an AUX adapter | `AudioOutput` is currently a no-op mock — navigation is visual-only by decision. |
+| NFC "tap to connect" (not used) | — | Most Wear OS watches can't act as NFC readers, so connection is automatic via `CapabilityClient` instead; `NfcProvider` stays a mock. |
+
+## Project layout
+
+```
+core/          pure Kotlin/JVM — domain, interfaces, managers, protocol, algorithms, tests
+wearos-app/    Wear OS Compose UI + watch-side hardware impls
+phone-app/     Android companion — navigation / media / location capture
+docs/          android-integration-research.md (what Android actually permits, with sources)
+tools/         run_tests.sh / run_demo.sh — build & run core without Gradle
+PLAN.md        living implementation plan: phase history, risks, on-device checklist
+PROJECT_STATUS.md   terse per-panel status tracker
+TESTING.md     Wear OS emulator walkthrough
+```
