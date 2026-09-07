@@ -7,3 +7,6 @@ core/bin/
 local.properties
 
 .fake
+
+# Claude Code worktrees / local agent state
+.claude/
