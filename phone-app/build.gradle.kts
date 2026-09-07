@@ -26,13 +26,21 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions {
-        jvmTarget = "17"
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
     }
 }
 
+// Versions resolved 2026-09-07 against the real repos and verified to assemble on this
+// machine (Gradle 9.3.0, JDK 25, SDK 36). See PLAN.md Phase 0c.
 dependencies {
     implementation(project(":core"))
-    implementation("androidx.core:core-ktx:1.13.1")
-    implementation("com.google.android.gms:play-services-wearable:20.0.0")
+    implementation("androidx.core:core-ktx:1.16.0")
+    implementation("com.google.android.gms:play-services-wearable:19.0.0")
+
+    // Fused location for the camera-proximity (Blizzer) service (Phase 4).
+    implementation("com.google.android.gms:play-services-location:21.3.0")
 }

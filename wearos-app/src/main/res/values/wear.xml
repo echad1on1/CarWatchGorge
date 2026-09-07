@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Data Layer capability this watch node advertises. The phone companion looks this up to
+     find the watch instead of broadcasting to every connected node. -->
+<resources>
+    <string-array name="android_wear_capabilities">
+        <item>automotive_dashboard_watch</item>
+    </string-array>
+</resources>

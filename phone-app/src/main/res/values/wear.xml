@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Data Layer capability this phone node advertises. WearDataLayerBluetoothProvider on the
+     watch resolves + watches this to find the phone and track connect/disconnect. -->
+<resources>
+    <string-array name="android_wear_capabilities">
+        <item>automotive_dashboard_phone</item>
+    </string-array>
+</resources>

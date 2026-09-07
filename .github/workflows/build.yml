@@ -5,11 +5,8 @@ name: build
 # a sender method renamed, and MainActivity / WearMessageSender silently disagreed) fails
 # here immediately instead of on someone's next manual sync.
 #
-# NOTE: the `android` job will not pass until Phase 0c of PLAN.md (Gradle / AGP / Kotlin /
-# Compose version realignment) is done in Android Studio — the versions currently committed
-# were written in a no-network sandbox and are known-incompatible. The `core` job is
-# expected to pass first. Do not delete the `android` job in the meantime; a failing job is
-# the reminder that 0c is outstanding.
+# As of 2026-09-07 (PLAN.md Phase 0c) all three modules build: Gradle 9.3.0 wrapper, AGP
+# 8.13.2, Kotlin 2.1.10, Compose BOM 2025.10.01, compileSdk 36. Both jobs are expected green.
 
 on:
   push:

@@ -3,11 +3,10 @@
 // (NfcProvider, BluetoothProvider, etc.) — see hardware/README.md in this module once those
 // exist.
 //
-// NOTE: version numbers below were sourced from https://developer.android.com/training/wearables/compose
-// at the time this was written, but could not be verified by actually running Gradle in the
-// sandbox this project was built in (no network access to Google's Maven repo — see root
-// README). Treat them as a reasonable starting point, not gospel — Android Studio will flag
-// anything outdated when this is first opened and synced there.
+// Versions resolved 2026-09-07 against the real Google Maven / Maven Central repos and
+// verified to assemble on this machine (Gradle 9.3.0, JDK 25, Android SDK 36). See PLAN.md
+// Phase 0c for the resolution notes. Wear Compose stable tops out at 1.6.2 (1.7.x is still
+// alpha), so those coordinates were already current.
 plugins {
     id("com.android.application")
     kotlin("android")
@@ -35,8 +34,11 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions {
-        jvmTarget = "17"
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
     }
 }
 
@@ -44,20 +46,27 @@ dependencies {
     implementation(project(":core"))
 
     // Core Compose (shared with mobile Compose; Wear OS uses these as-is per Google's guidance).
-    val composeBom = platform("androidx.compose:compose-bom:2026.05.00")
+    // The BOM governs every androidx.compose.* version — do not pin them individually.
+    // BOM 2025.10.01 → Compose 1.9.4 (compileSdk 36, AGP 8.9+). Newer BOMs pull Compose
+    // 1.12.x which demands AGP 9.1 + compileSdk 37 (not installed here).
+    val composeBom = platform("androidx.compose:compose-bom:2025.10.01")
     implementation(composeBom)
     implementation("androidx.activity:activity-compose:1.13.0")
-    implementation("androidx.compose.ui:ui-tooling-preview:1.11.3")
-    debugImplementation("androidx.compose.ui:ui-tooling:1.11.3")
+    implementation("androidx.compose.ui:ui-tooling-preview")
+    debugImplementation("androidx.compose.ui:ui-tooling")
 
     // Compose for Wear OS — Wear-specific material/foundation, NOT the mobile material3 library
     // (mixing the two is explicitly discouraged by Google's own Wear OS Compose guidance).
+    // 1.6.2 is the latest STABLE Wear Compose (1.7.x is alpha as of 2026-09).
     implementation("androidx.wear.compose:compose-material3:1.6.2")
     implementation("androidx.wear.compose:compose-foundation:1.6.2")
     implementation("androidx.wear.compose:compose-ui-tooling:1.6.2")
 
-    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.9.0")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.9.4")
 
     // Phone ↔ watch transport for navigation checkpoints (see WearDataLayerBluetoothProvider).
-    implementation("com.google.android.gms:play-services-wearable:20.0.0")
+    implementation("com.google.android.gms:play-services-wearable:19.0.0")
+
+    // Per-viewer settings persistence behind core's SettingsStore (Phase 5).
+    implementation("androidx.datastore:datastore-preferences:1.1.7")
 }
