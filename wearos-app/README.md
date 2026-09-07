@@ -21,7 +21,7 @@ section). That means:
   signature that's shifted slightly), and confirm it builds and runs on a Wear OS emulator.
 
 Treat this module as a strong, structurally-correct starting point, not a finished, verified
-deliverable — unlike `core`, which has 63 passing automated tests run in this same sandbox.
+deliverable — unlike `core`, which has 19 passing test suites (98 assertions, verified 2026-09-07).
 
 ## Structure
 

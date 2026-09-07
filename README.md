@@ -13,15 +13,22 @@ that form factor today is **Wear OS (Android/Kotlin)** — it's the only mainstr
 platform with mature Bluetooth, NFC, and audio-routing APIs, and it lets the dashboard app be
 built with Jetpack Compose for a small round/square display.
 
-**However**, this development sandbox has no Android SDK and no network access to Google's
+> **Build-environment note (updated 2026-09-07):** the paragraph below describes the
+> *original* build sandbox. The current development machine **does** have the Android SDK,
+> Android Studio (with a bundled `kotlinc` and a Wear OS system image + AVDs), so Phases
+> 0b–0e of `PLAN.md` are unblocked here. The core/wearos split described below still stands
+> on its own architectural merits and is not going away.
+
+**Originally**, the development sandbox had no Android SDK and no network access to Google's
 Maven repository (`dl.google.com`) or Gradle's distribution service, so an Android Gradle build
-cannot actually be *run* here. To avoid wasting the session on infrastructure that can't be
+could not be *run* there. To avoid wasting the session on infrastructure that couldn't be
 verified, the project is split in two:
 
 - **`core/`** — pure, dependency-free Kotlin (JVM target). All domain models, hardware
   interfaces, mocks/simulators, and service logic (state machines, managers) live here. Zero
-  Android dependency. Compiles, runs, and is **fully unit tested today** in this sandbox via
-  `kotlinc` + `java` directly (see "How to test" below).
+  Android dependency. Compiles, runs, and is **fully unit tested today** via `kotlinc` +
+  `kotlin` directly (`tools/run_tests.sh`) or through Gradle (`./gradlew :core:runCoreTests`)
+  — see "How to test" below.
 - **`wearos-app/`** — the real Wear OS Compose UI, wired to `core`. Written against real,
   sourced Wear OS Compose APIs, but **not yet build-verified** — see `wearos-app/README.md` for
   exactly what that means and what to check first when this is opened in Android Studio.
@@ -61,7 +68,7 @@ automotive-dashboard/
                         app exactly like wearos-app's MainActivity does
     src/test/kotlin/com/dashboard/core/
       testing/          Tiny hand-rolled assertion/test-suite harness (see note below)
-      tests/            63 tests across every manager, the codec, and a full end-to-end journey
+      tests/            19 suites / 98 assertions across every manager, the codec, end-to-end
   wearos-app/           Real Jetpack Compose Wear OS UI — see wearos-app/README.md for status
   docs/
     android-integration-research.md   Sourced research on what Android actually permits for
@@ -102,10 +109,11 @@ simulated ignition-off puts the dashboard to sleep.
 ## How to test
 
 ```
-tools/run_tests.sh
+tools/run_tests.sh            # needs kotlinc + kotlin on PATH
+./gradlew :core:runCoreTests  # same suite, no standalone kotlinc needed (once Gradle is set up)
 ```
 
-Compiles and runs all **63 tests**: domain models (never-fabricate-unavailable-values
+Compiles and runs all **19 suites (98 assertions)**: domain models (never-fabricate-unavailable-values
 guarantee), every manager (`ConnectionManager`'s full state machine including the
 tap-while-connecting no-op and failed-handshake `ERROR` recovery; `VehicleDataManager`,
 `NavigationManager`, `MediaManager`, `BlizzerManager`'s late-subscriber caching;
