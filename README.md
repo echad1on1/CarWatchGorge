@@ -136,3 +136,7 @@ PLAN.md        living implementation plan: phase history, risks, on-device check
 PROJECT_STATUS.md   terse per-panel status tracker
 TESTING.md     Wear OS emulator walkthrough
 ```
+
+## Author
+
+Built and maintained by Eldar Dacic.
