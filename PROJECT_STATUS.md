@@ -15,7 +15,7 @@ Three Gradle modules:
   (`BluetoothProvider`, `VehicleDataProvider`, `PhoneCommunication`, etc.), managers
   (`ConnectionManager`, `NavigationManager`, `MediaManager`, `BlizzerManager`, `PowerManager`,
   `SettingsManager`), the wire protocol (`ProtocolMessage`/`MessageCodec`), and
-  `NavigationAnnouncementParser`. **18 test suites / 94 assertions (verified 2026-09-07, all
+  `NavigationAnnouncementParser`. **19 test suites / 100 assertions (verified 2026-09-07, all
   passing), run via `./tools/run_tests.sh` or `./gradlew :core:runCoreTests`.**
 - **`wearos-app/`** — the real Wear OS Compose app (watch side).
 - **`phone-app/`** — the real Android companion app (phone side), currently just
@@ -33,7 +33,7 @@ Layer transport.
 |---|---|---|
 | **Car** | OBD-II/CAN data from a Bluetooth device wired to the vehicle console | 🔴 Mock only (`MockVehicleDataProvider`). **Decision locked**: watch connects *directly* to the vehicle's BLE adapter (not via phone relay). Real `BleVehicleDataProvider` not started. |
 | **Maps** | Turn info from phone, transported to watch | 🟡 Logic proven with real captured Google Maps data (parser handles English + Croatian, ignores trip-total-distance traps). Transport (Wear Data Layer) **build-verified 2026-09-07**; Data Layer bugs fixed (see Phase B). Real-device announcement capture still unconfirmed. Decision: AccessibilityService kept. |
-| **Music** | Song info + visual audio representation, playback controls | 🔴 Mock only (`MockPhoneCommunication`/`MediaState`). Real `NotificationListenerService` + `MediaSessionManager` capture = Phase 1, not started. |
+| **Music** | Song info + visual audio representation, playback controls | 🟡 Real pipe **built + build-verified 2026-09-07**: phone `MediaNotificationListenerService` → `MediaState` over Data Layer → `MediaManager` (real, not mock); watch `⏮⏯⏭` → `MediaCommandMessage` → phone `WearInboundListenerService` → `transportControls`. Decorative waveform + progress bar on `MusicScreen`. Session selection is pure/tested (`MediaSessionSelection`). Needs a device + notification-access grant to confirm. |
 | **Blizzer** | Camera/hazard alerts, blinking overlay over all panels, color-coded by distance | 🟡 Overlay + auto-dismiss done, **5-tier** colours (2000/1000/500/200/100 m, blue→green→amber→red via `BlizzerProximity`), no sound. Real GPS + camera-POI feed (phone side) = Phase 4, not started. |
 
 ## Phase tracker
@@ -81,12 +81,23 @@ protocol — standard, documented), auto-connect wired into `PowerManager`'s `on
 device-testable here — plan is to add unit tests for the OBD-II PID *parsing* logic only (pure
 functions), verified without hardware.
 
-### Phase D — Music (visual audio representation + real session) — 🔴 NOT STARTED
-Plan: a synthetic/decorative waveform in `MusicScreen` driven by `MediaState.positionMillis`
-(no real audio/FFT, since audio doesn't play on the watch) as the first step. Real now-playing
-data via phone-side `NotificationListenerService` + `MediaSessionManager` (confirmed viable in
-`docs/android-integration-research.md`) is a separate, later effort — same shape as the Maps
-transport work, not yet started.
+### Phase D — Music (visual audio representation + real session) — 🟡 BUILD-VERIFIED, device pending
+- `core`: `MediaSessionSelection` / `SessionSnapshot` — pure "which session do we mirror" rule
+  (PLAYING > PAUSED > STOPPED/UNKNOWN, then most-recently-active), `MediaSessionSelectionTests`.
+- `phone-app/media/MediaNotificationListenerService` — `NotificationListenerService` purely as
+  the vehicle for the "Notification access" grant; reads every app's session via
+  `MediaSessionManager.getActiveSessions`, maps the chosen one to `MediaState`, sends over the
+  Data Layer. `MediaSessionHub` holds the chosen `MediaController` for the inbound path.
+- `phone-app/WearInboundListenerService` — `WearableListenerService`; a `MediaCommandMessage`
+  from the watch → `MediaSessionHub.dispatch` → `transportControls.play()/pause()/skip*`.
+- `phone-app/MainActivity` — accessibility **and** notification-access grant buttons + status.
+- `wearos-app`: `MediaManager` now on `navPhoneCommunication` (real), not the mock;
+  `MusicScreen` has a decorative frame-timed bar waveform (advances only while PLAYING) +
+  a progress bar.
+- **Decorative only** — no real audio/FFT (audio never plays on the watch). Voice cues stay
+  off (`PLAN.md` decision).
+- **Needs a device**: notification-access grant + a real Spotify/YT-Music session, and the
+  watch→phone command round trip.
 
 ## How to verify before changing anything
 
