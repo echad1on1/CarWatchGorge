@@ -21,7 +21,12 @@ import com.dashboard.core.hardware.mock.MockVehicleDataProvider
 class DevControlPanel(
     private val connectionManager: ConnectionManager,
     private val nfcProvider: MockNfcProvider,
-    private val vehicleProvider: MockVehicleDataProvider,
+    /**
+     * Null once the Car panel is on a real [com.dashboard.core.hardware.VehicleDataProvider]
+     * (e.g. a BLE OBD adapter) — there is then no simulated "driver" to steer, so
+     * [setTargetSpeedKmh] becomes a no-op.
+     */
+    private val vehicleProvider: MockVehicleDataProvider?,
     private val phoneCommunication: MockPhoneCommunication,
     private val powerProvider: MockPowerProvider,
 ) {
@@ -30,7 +35,7 @@ class DevControlPanel(
     fun disconnectPhone() = connectionManager.simulateDisconnect()
 
     // Vehicle
-    fun setTargetSpeedKmh(kmh: Double) = vehicleProvider.setTargetSpeedKmh(kmh)
+    fun setTargetSpeedKmh(kmh: Double) { vehicleProvider?.setTargetSpeedKmh(kmh) }
 
     // Navigation
     fun startNavigation(roadName: String = "Ridge Valley Rd", etaMinutes: Int = 12) =

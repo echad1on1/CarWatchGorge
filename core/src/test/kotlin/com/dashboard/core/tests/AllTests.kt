@@ -4,6 +4,7 @@ fun main() {
     val suites = listOf(
         vehicleDataSuite(),
         vehicleDataManagerSuite(),
+        obdPidParserSuite(),
         connectionManagerSuite(),
         messageCodecSuite(),
         mockPhoneCommunicationSuite(),
