@@ -3,25 +3,26 @@
 The real Wear OS UI: Jetpack Compose for Wear OS, wired directly to `core`'s managers. Contains
 **only** presentation — no business logic, no direct hardware access.
 
-**Navigation transport is wired** via the Wear OS Data Layer (`WearDataLayerBluetoothProvider`
-+ `NavDataListenerService`). Vehicle data, NFC, media, and Blizzer still use `core` mocks.
+Real data sources are wired via the Wear OS Data Layer: **navigation**
+(`WearDataLayerBluetoothProvider` + `NavDataListenerService`), **media**
+(`MediaManager` on the real transport), **Blizzer** (camera-proximity feed). **Vehicle data**
+uses `BleObdVehicleDataProvider` in non-debug builds (a BLE ELM327 link) and
+`MockVehicleDataProvider` in debug. **Settings** persist via `DataStoreSettingsStore`. NFC is
+still a `core` mock (most Wear watches can't read tags — connection is effectively automatic
+via `CapabilityClient`).
 
-## Status: written, not yet build-verified
+## Status: builds; on-device verification pending
 
-This code was written in a sandbox with **no Android SDK and no network access to Google's Maven
-repository** (`dl.google.com` isn't reachable — see the root README's "Target platform decision"
-section). That means:
+As of 2026-09-07 this module **compiles and assembles** (debug + release) — see the root
+`PLAN.md` Phase 0c for the resolved version stack (Gradle 9.3, AGP 8.13.2, Compose BOM
+2025.10.01, compileSdk 36). What still needs a real device / emulator:
 
-- Every `.kt` file here is syntactically real Kotlin/Compose, written against APIs and package
-  names sourced from Android's official Wear OS Compose documentation (linked in
-  `build.gradle.kts`) — nothing invented.
-- **None of it has actually been compiled.** The very first thing to do when this project is
-  opened in Android Studio is `File > Sync Project with Gradle Files`, fix whatever Studio flags
-  (most likely: a dependency version that's moved on since this was written, or a Compose API
-  signature that's shifted slightly), and confirm it builds and runs on a Wear OS emulator.
+- The `TESTING.md` §3 walkthrough on a Wear OS emulator (expect minor Wear Compose API drift
+  to fix on first run).
+- The paired-phone Data Layer round trip and the BLE OBD link (needs a dongle).
 
-Treat this module as a strong, structurally-correct starting point, not a finished, verified
-deliverable — unlike `core`, which has 19 passing test suites (98 assertions, verified 2026-09-07).
+See `PLAN.md`'s "On-device verification checklist". `core` has 22 passing test suites (131
+assertions, verified 2026-09-07).
 
 ## Structure
 
