@@ -45,10 +45,11 @@ class NavigationAudioManager(
     private fun directionToAudioEvent(direction: Direction): AudioEvent? = when (direction) {
         Direction.TURN_LEFT -> AudioEvent.TURN_LEFT
         Direction.TURN_RIGHT -> AudioEvent.TURN_RIGHT
-        Direction.KEEP_LEFT -> AudioEvent.KEEP_LEFT
-        Direction.KEEP_RIGHT -> AudioEvent.KEEP_RIGHT
+        Direction.KEEP_LEFT, Direction.EXIT_LEFT -> AudioEvent.KEEP_LEFT
+        Direction.KEEP_RIGHT, Direction.EXIT_RIGHT -> AudioEvent.KEEP_RIGHT
         Direction.ROUNDABOUT -> AudioEvent.ROUNDABOUT
         Direction.ARRIVED -> AudioEvent.ARRIVED
-        Direction.STRAIGHT, Direction.UNKNOWN -> null // nothing worth announcing
+        // No distinct cue for these yet; the visual glyph carries them.
+        Direction.STRAIGHT, Direction.MERGE, Direction.U_TURN, Direction.UNKNOWN -> null
     }
 }

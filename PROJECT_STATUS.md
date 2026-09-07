@@ -15,7 +15,7 @@ Three Gradle modules:
   (`BluetoothProvider`, `VehicleDataProvider`, `PhoneCommunication`, etc.), managers
   (`ConnectionManager`, `NavigationManager`, `MediaManager`, `BlizzerManager`, `PowerManager`,
   `SettingsManager`), the wire protocol (`ProtocolMessage`/`MessageCodec`), and
-  `NavigationAnnouncementParser`. **19 test suites / 100 assertions (verified 2026-09-07, all
+  `NavigationAnnouncementParser`. **19 test suites / 111 assertions (verified 2026-09-07, all
   passing), run via `./tools/run_tests.sh` or `./gradlew :core:runCoreTests`.**
 - **`wearos-app/`** — the real Wear OS Compose app (watch side).
 - **`phone-app/`** — the real Android companion app (phone side), currently just
@@ -32,7 +32,7 @@ Layer transport.
 | Panel | Spec | Status |
 |---|---|---|
 | **Car** | OBD-II/CAN data from a Bluetooth device wired to the vehicle console | 🔴 Mock only (`MockVehicleDataProvider`). **Decision locked**: watch connects *directly* to the vehicle's BLE adapter (not via phone relay). Real `BleVehicleDataProvider` not started. |
-| **Maps** | Turn info from phone, transported to watch | 🟡 Logic proven with real captured Google Maps data (parser handles English + Croatian, ignores trip-total-distance traps). Transport (Wear Data Layer) **build-verified 2026-09-07**; Data Layer bugs fixed (see Phase B). Real-device announcement capture still unconfirmed. Decision: AccessibilityService kept. |
+| **Maps** | Turn info from phone, transported to watch | 🟡 Parser hardened 2026-09-07 (U-turn/merge/ramp/slight/sharp, imperial + `1,5` decimals, more Croatian — 20 tests). Transport **build-verified**; Data Layer bugs fixed (Phase B). `Direction` enum gained `U_TURN/MERGE/EXIT_LEFT/EXIT_RIGHT`. Decision: AccessibilityService kept. Real-device announcement capture still unconfirmed (the one open spike). |
 | **Music** | Song info + visual audio representation, playback controls | 🟡 Real pipe **built + build-verified 2026-09-07**: phone `MediaNotificationListenerService` → `MediaState` over Data Layer → `MediaManager` (real, not mock); watch `⏮⏯⏭` → `MediaCommandMessage` → phone `WearInboundListenerService` → `transportControls`. Decorative waveform + progress bar on `MusicScreen`. Session selection is pure/tested (`MediaSessionSelection`). Needs a device + notification-access grant to confirm. |
 | **Blizzer** | Camera/hazard alerts, blinking overlay over all panels, color-coded by distance | 🟡 Overlay + auto-dismiss done, **5-tier** colours (2000/1000/500/200/100 m, blue→green→amber→red via `BlizzerProximity`), no sound. Real GPS + camera-POI feed (phone side) = Phase 4, not started. |
 
