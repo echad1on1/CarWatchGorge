@@ -27,14 +27,14 @@ tracker, this is the full plan with file-level detail.
 
 ## Status snapshot
 
-| Phase | Title | Status |
-|---|---|---|
-| 0 | Environment & build verification | 🟡 0b + 0c + 0e done (all 3 modules build here). 0d = emulator/device walkthrough (user) |
-| 1 | Music — real now-playing + controls + waveform | 🟡 Code complete + builds; needs a device to verify session capture |
-| 2 | Maps — harden parser (AccessibilityService kept, per decision #4) | 🟡 Parser hardened + builds; real-device announcement spike still open (user) |
-| 3 | Car — watch-side BLE OBD-II | 🟡 Parser done + tested; BLE provider written + builds; needs a dongle |
-| 4 | Blizzer — real GPS + camera-POI feed | 🟡 5-tier colours + `CameraProximity` + phone GPS service done + builds; needs a device + real dataset |
-| 5 | Persistence & polish | 🟡 DataStore + icons + release build done; no settings UI, `src/debug` move deferred |
+| Phase | Title | Status | Left |
+|---|---|---|---|
+| 0 | Environment & build verification | ✅ code / 🟡 device | 0d emulator walkthrough; paired-phone Data Layer check |
+| 1 | Music — real now-playing + controls + waveform | ✅ code / 🟡 device | notification grant + real session + watch→phone controls |
+| 2 | Maps — hardened parser, AccessibilityService (#4) | ✅ code / 🟡 device | real-device capture spike (backgrounded Maps — top risk) |
+| 3 | Car — watch-side BLE OBD-II | ✅ code / 🟡 device | a real ELM327 dongle; radio-concurrency check (R3) |
+| 4 | Blizzer — real GPS + camera-POI feed | ✅ code / 🟡 device | real OSM camera dataset; a drive-past test |
+| 5 | Persistence & polish | ✅ core / 🟡 polish | settings UI, `src/debug` move, R8, rotary, signing config |
 
 ### Locked decisions (2026-09-07)
 
@@ -46,8 +46,22 @@ tracker, this is the full plan with file-level detail.
 - **Build toolchain (this machine):** Gradle 9.3.0 + JDK 25 + AGP 8.13.2 + Kotlin 2.1.10 +
   Compose BOM 2025.10.01 + compileSdk 36. Verified building.
 
-Panel data sources today: **Car** mock · **Maps** transport wired (unbuilt) · **Music** mock ·
-**Blizzer** watch/core done, no real feed.
+### Where the code stands (2026-09-07, HEAD `3369e0a`)
+
+**Every feature phase is code-complete and build-verified.** `./gradlew clean
+:core:runCoreTests :wearos-app:assembleDebug :wearos-app:assembleRelease
+:phone-app:assembleDebug :phone-app:assembleRelease` → BUILD SUCCESSFUL. Core: 22 suites /
+131 assertions green.
+
+Panel data sources now: **Car** real BLE OBD-II (`BleObdVehicleDataProvider`, mock in debug)
+· **Maps** real AccessibilityService → Data Layer · **Music** real `MediaSessionManager` →
+Data Layer, with transport controls back · **Blizzer** real GPS + camera-POI → Data Layer.
+NFC stays a mock (most Wear watches can't read tags — connection is effectively automatic via
+`CapabilityClient`). Settings persist via DataStore.
+
+**What is left is on-device verification, not code** — see "On-device verification checklist"
+at the bottom. None of it is doable in this headless environment (no emulator control, no OBD
+dongle, no phone GPS).
 
 ---
 
@@ -849,6 +863,40 @@ Numbered for reference from the phases above.
     AGP version chosen in Phase 0c.
 
 ---
+
+## On-device verification checklist (the remaining work — all needs hardware)
+
+Nothing here changes code unless a step fails. Order matters: earlier steps unblock later ones.
+
+1. **Wear emulator smoke test (0d).** Open the repo in Android Studio (or use the CLI build),
+   `:wearos-app:installDebug` onto `Wear_OS_Large_Round`, walk the full `TESTING.md` §3 table.
+   Debug build → mock vehicle + dev-controls ⚙, so this needs no phone. Expect possible Wear
+   Compose API drift on first run (the pager, `Button`, `Text`, `ScalingLazyColumn`).
+2. **Paired-phone Data Layer (0e).** Pair the `Pixel_10` AVD with the Wear AVD, install both
+   apps. Confirm a cross-package `MessageClient` frame actually crosses
+   `com.dashboard.phoneapp` → `com.dashboard.wearos` (bug R4). Check `ConnectionManager`
+   reaches `CONNECTED` when the phone is present and `DISCONNECTING` when it goes away
+   (the new `CapabilityClient` listener).
+3. **Maps (Phase 2 spike — the biggest single risk).** On a real phone: grant Accessibility,
+   start real Google Maps navigation, watch logcat `NavAccessibilityService`. Confirm the
+   turn text is actually captured **while Maps is backgrounded / screen off** (this is the
+   open question — if it captures nothing, revisit decision #4 / the notification pivot).
+   Feed real captured strings back into `NavigationAnnouncementParserTests` as fixtures.
+4. **Music (Phase 1).** Grant Notification access on the phone, play Spotify / YT Music,
+   confirm title/artist/state reach `MusicScreen`; confirm ⏮ ⏯ ⏭ on the watch actually
+   drive the phone (`WearInboundListenerService` → `transportControls`).
+5. **Car (Phase 3).** Needs a real ELM327 BLE dongle (or a bench ECU simulator). Install a
+   **release** build (debug uses the mock). Confirm scan finds the adapter, GATT discovery
+   picks a profile in `ObdGattProfile.CANDIDATES`, AT init completes, live values appear.
+   **Also test radio concurrency** — watch↔dongle *and* watch↔phone at the same time (R3).
+   If it fails, the fallback is phone-relayed OBD (a real design change).
+6. **Blizzer (Phase 4).** Replace `assets/speed_cameras.geojson` with a real OSM extract for
+   your region (ODbL — put attribution in an about screen). Grant fine + background location,
+   Start speed-camera alerts, drive past a known camera, confirm the overlay escalates
+   blue→green→amber→red across the 5 bands and auto-dismisses.
+7. **Release build install.** `:wearos-app:assembleRelease` produces an unsigned APK — add a
+   signing config (or `bundletool`/`apksigner`) to actually install it. Confirm the ⚙ button
+   is absent.
 
 ## Critical files for implementation
 
