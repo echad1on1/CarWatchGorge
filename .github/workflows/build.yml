@@ -1,0 +1,42 @@
+name: build
+
+# The build-verification gate. Compiles all three modules together on every push so the
+# class of cross-session drift that already bit this repo once (a provider's package moved,
+# a sender method renamed, and MainActivity / WearMessageSender silently disagreed) fails
+# here immediately instead of on someone's next manual sync.
+#
+# NOTE: the `android` job will not pass until Phase 0c of PLAN.md (Gradle / AGP / Kotlin /
+# Compose version realignment) is done in Android Studio — the versions currently committed
+# were written in a no-network sandbox and are known-incompatible. The `core` job is
+# expected to pass first. Do not delete the `android` job in the meantime; a failing job is
+# the reminder that 0c is outstanding.
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  core:
+    name: core tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: gradle/actions/setup-gradle@v4
+      - run: ./gradlew :core:runCoreTests --no-daemon
+
+  android:
+    name: assemble apps + lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: android-actions/setup-android@v3
+      - uses: gradle/actions/setup-gradle@v4
+      - run: ./gradlew :wearos-app:assembleDebug :phone-app:assembleDebug lint --no-daemon

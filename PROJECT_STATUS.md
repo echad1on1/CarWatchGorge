@@ -15,7 +15,8 @@ Three Gradle modules:
   (`BluetoothProvider`, `VehicleDataProvider`, `PhoneCommunication`, etc.), managers
   (`ConnectionManager`, `NavigationManager`, `MediaManager`, `BlizzerManager`, `PowerManager`,
   `SettingsManager`), the wire protocol (`ProtocolMessage`/`MessageCodec`), and
-  `NavigationAnnouncementParser`. **91+ tests, run via `./tools/run_tests.sh`.**
+  `NavigationAnnouncementParser`. **19 test suites / 98 assertions (verified 2026-09-07 with
+  kotlinc 2.3.10, all passing), run via `./tools/run_tests.sh` or `./gradlew :core:runCoreTests`.**
 - **`wearos-app/`** — the real Wear OS Compose app (watch side).
 - **`phone-app/`** — the real Android companion app (phone side), currently just
   `NavigationAccessibilityService` + a disclosure `MainActivity`.

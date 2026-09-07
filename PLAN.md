@@ -13,6 +13,7 @@ tracker, this is the full plan with file-level detail.
 | Date | Change | By |
 |---|---|---|
 | 2026-09-07 | Initial plan created from a full-repo + environment audit. | Claude (Plan agent) |
+| 2026-09-07 | **Phase 0b done.** `core/bin/` (60 committed dupes) removed from git; `tools/run_tests.sh` green on this machine with bundled kotlinc 2.3.10 — **19 suites / 98 assertions, 0 errors, 0 required fixes** (3 harmless `!!` warnings left as-is); `ConsoleDemo` runs end-to-end. Added `runCoreTests` Gradle task + `check` hook to `core/build.gradle.kts` and migrated its deprecated `kotlinOptions` → `compilerOptions` DSL. Added `.github/workflows/build.yml` (core job + an android job that stays red until 0c). Corrected the "63"/"91+" test counts and the stale "no Android SDK on this machine" claims in `README.md` / `PROJECT_STATUS.md` / `wearos-app/README.md`. | Claude |
 
 ---
 
@@ -20,7 +21,7 @@ tracker, this is the full plan with file-level detail.
 
 | Phase | Title | Status |
 |---|---|---|
-| 0 | Environment & build verification | 🔴 Not started |
+| 0 | Environment & build verification | 🟡 In progress — 0b done; 0a/0c/0d/0e need Android Studio |
 | 1 | Music — real now-playing + controls + waveform | 🔴 Not started |
 | 2 | Maps — verify capture, harden parser | 🔴 Not started |
 | 3 | Car — watch-side BLE OBD-II | 🔴 Not started (parser doable now) |
@@ -54,12 +55,11 @@ this machine**:
 - 3 Gradle modules exactly as documented. `core` is genuinely pure Kotlin/JVM — no Android
   import anywhere.
 - **Nothing in `wearos-app` or `phone-app` has ever been compiled.**
-- `core/bin/` — **60 committed `.kt` files**, byte-identical duplicates of
-  `core/src/main/kotlin/**`, despite `.gitignore` listing `core/bin/`. Hazard + noise →
-  `git rm -r --cached core/bin` in Phase 0.
+- ~~`core/bin/` — 60 committed byte-identical dupes of `core/src/main/kotlin/**`.~~
+  **Removed from git 2026-09-07** (`git rm -r --cached`; `.gitignore` already covered it).
 - Test harness = a `main()` in `core/src/test/kotlin/.../tests/AllTests.kt` running
-  **19 suites**. Docs claim "63" and "91+" in different places — both wrong. Real assertion
-  count unknown until it runs on this machine.
+  **19 suites / 98 assertions** — all passing, verified 2026-09-07 with kotlinc 2.3.10.
+  (Docs previously claimed "63" and "91+" — both corrected.)
 - Phase B nav-transport files are self-consistent *as written*:
   `WearDataLayerBluetoothProvider` in package `com.dashboard.wearos.hardware`, singleton via
   `getInstance(context)`, `MESSAGE_PATH = "/automotive-dashboard/nav"`;
@@ -107,13 +107,13 @@ Tracked in the Risk Register too; listed here for visibility.
 
 | Item | Where | Problem | Action |
 |---|---|---|---|
-| "No Android SDK / no kotlinc in this sandbox" | `README.md`, `wearos-app/README.md`, `core` build comments | False for this machine | Update docs; Phase 0 uses them |
-| Test count "63" vs "91+" vs 19 suites | `README.md` / `PROJECT_STATUS.md` / `AllTests.kt` | Three different numbers | Reconcile after first green run (Phase 0b) |
-| `canRetrieveWindowContent="false"` | `docs/android-integration-research.md` | Actual config is `true` | Correct the doc |
+| ~~"No Android SDK / no kotlinc in this sandbox"~~ | `README.md`, `wearos-app/README.md` | ✅ Fixed 2026-09-07 — added a build-environment note | done |
+| ~~Test count "63" vs "91+"~~ | `README.md` / `PROJECT_STATUS.md` / `wearos-app/README.md` | ✅ Fixed 2026-09-07 → "19 suites / 98 assertions" | done |
+| `canRetrieveWindowContent="false"` | `docs/android-integration-research.md` | Actual config is `true` | Correct the doc (Phase 2) |
 | Blizzer "5 thresholds, blue→green→red" done | `PROJECT_STATUS.md` Phase A | Overlay uses the 3-tier mapper; 5-tier class unused | Decision #9, then reconcile |
 | `BluetoothProvider` "should become Data-Layer-shaped" | `README.md` "What's next" #2 | `docs/android-integration-research.md` concludes the opposite | **Resolved below — no change** |
 | Gradle 9.3.0 + AGP 8.9.1 + Kotlin 2.1.10 | root `build.gradle.kts`, wrapper, module builds | Mutually incompatible; wearos versions self-described as guesses | Phase 0c |
-| `core/bin/` committed | `.gitignore` says ignore; git tracks 60 files | Hazard + noise | `git rm -r --cached core/bin` (Phase 0b) |
+| ~~`core/bin/` committed~~ | `.gitignore` vs git index | ✅ Fixed 2026-09-07 — `git rm -r --cached core/bin` | done |
 | Summary table lists "Blizzer" twice | `docs/android-integration-research.md` | Cosmetic | Optional cleanup |
 | "Music/Blizzer use a separate MockPhoneCommunication — intentional" | `PROJECT_STATUS.md` Phase B | Becomes false after Phases 1 & 4 | Update per phase |
 
@@ -174,17 +174,32 @@ code and establishes the gate that would have caught the past
   via Studio's SDK Manager if scripted/CI builds are wanted.
 - `local.properties` already points at the real SDK and is git-ignored — leave it.
 
-### 0b. Get `core` tests green (headless, no network) — **doable now**
+### 0b. Get `core` tests green (headless, no network) — ✅ DONE 2026-09-07
 
-1. `git rm -r --cached core/bin` and remove the directory (committed duplicate of
-   `src/main`). Confirm `.gitignore` keeps it out.
-2. Run `tools/run_tests.sh` with bundled kotlinc on PATH. It compiles `core/src/main` +
-   `core/src/test`, runs `com.dashboard.core.tests.AllTestsKt`.
-3. Fix compile errors from the newer Kotlin (2.3.10 vs 2.1.10 the code targets — expect
-   minimal; `kotlinOptions` deprecation is Gradle-only, not CLI).
-4. Record the real pass count. Update `README.md` / `PROJECT_STATUS.md` to one correct
-   number.
-5. `tools/run_demo.sh` — sanity-run `ConsoleDemo` end to end.
+1. ✅ `git rm -r --cached core/bin` + removed the directory (60-file byte-identical dupe of
+   `src/main`). `.gitignore` already lists `core/bin/`.
+2. ✅ `tools/run_tests.sh` with the Studio-bundled `kotlinc` on PATH
+   (`/Applications/Android Studio.app/Contents/plugins/Kotlin/kotlinc/bin`, **kotlinc-jvm
+   2.3.10, JRE 25**). Compiles `core/src/main` + `core/src/test`, runs
+   `com.dashboard.core.tests.AllTestsKt`.
+3. ✅ **No compile errors** under Kotlin 2.3.10 — the "fix newer-Kotlin errors" step was a
+   no-op. 3 warnings only: `unnecessary non-null assertion (!!)` in
+   `BluetoothPhoneCommunicationTests.kt:36` and `MockPhoneCommunicationTests.kt:95,107` —
+   left as-is (cosmetic; not worth the diff noise now, sweep during the JUnit5 migration).
+4. ✅ Real count: **19 suites, 98 `PASS` assertions, `ALL TESTS PASSED`.** Updated
+   `README.md`, `PROJECT_STATUS.md`, `wearos-app/README.md` (were "63" / "91+").
+5. ✅ `tools/run_demo.sh` (`ConsoleDemo`) walks the full journey and ends
+   "Dashboard asleep. Demo complete."
+
+Also done here (pulled forward from 0c / Testing Strategy #2 & #4):
+- `core/build.gradle.kts`: deprecated `tasks.withType<KotlinCompile> { kotlinOptions.jvmTarget }`
+  → `kotlin { compilerOptions { jvmTarget = JvmTarget.JVM_17 } }`; added
+  `tasks.register<JavaExec>("runCoreTests")` (+ `check` depends on it). **Unverified** — no
+  Gradle-compatible JDK on this machine yet (needs 0a/0c); the `kotlinc` path is what's
+  proven.
+- `.github/workflows/build.yml`: `core` job (`:core:runCoreTests` on Temurin 21) + `android`
+  job (`assembleDebug` + `lint`). The `android` job is **expected red until 0c** — left in
+  deliberately as the reminder.
 
 ### 0c. First Gradle sync + version realignment — **the explicit early task**
 
@@ -761,7 +776,7 @@ Phase 5  Persistence & polish  ─── after ≥1 real panel exists; the relea
 | R7 | ELM327 BLE clone firmware quirks / non-standard UUIDs | 3 | Medium | Isolate in `ObdGattProfile.kt`; get the specific adapter before wiring; bench-test with an emulator app |
 | R8 | Play Store review: AccessibilityService + NotificationListener + background location = heavy scrutiny | 2, 4 | High if published | Decide product vs personal (#2); the R2 pivot removes one; strong in-app disclosures |
 | R9 | Cross-session code drift reintroduces package/method mismatches | all | Medium | CI build gate (0e) compiling both app modules every push; keep `PROJECT_STATUS.md` + this file updated per phase |
-| R10 | `core` test count / assertions unknown until first run; a latent failure under newer Kotlin | 0b | Low | Run the harness in 0b before anything else; fix; record the real number |
+| R10 | ~~`core` test count unknown; latent failure under newer Kotlin~~ | 0b | — | ✅ Retired 2026-09-07 — 19 suites / 98 assertions all green on kotlinc 2.3.10, no code changes needed |
 | R11 | Two Blizzer color systems diverge further | 4 | Low | Reconcile to one in Phase 4 (decision #9) |
 | R12 | DataStore async vs synchronous `SettingsStore` interface | 5 | Low | `runBlocking` for the single startup read + async writes inside the impl; interface unchanged unless that fails |
 | R13 | Wear emulator on API 37 (preview) behaves inconsistently | 0d | Low | Recreate the AVD on a stable API (34/35) per decision #5 |

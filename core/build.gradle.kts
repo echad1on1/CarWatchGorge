@@ -16,8 +16,10 @@ java {
     targetCompatibility = JavaVersion.VERSION_17
 }
 
-tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
-    kotlinOptions.jvmTarget = "17"
+kotlin {
+    compilerOptions {
+        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
+    }
 }
 
 // Repositories are declared once, project-wide, in settings.gradle.kts — Gradle doesn't allow
@@ -27,3 +29,17 @@ tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach 
 // normal Maven access, add it here as a testImplementation and migrate
 // src/test/kotlin/.../testing/TestHarness.kt's callers over (see its class doc for why it
 // exists in the first place).
+
+// Runs the hand-rolled test harness (core/src/test/.../tests/AllTests.kt has the `main`) through
+// Gradle, so CI and machines without a standalone `kotlinc` on PATH can run it too — the
+// `tools/run_tests.sh` script still works for a quick local run. Zero new dependencies: the
+// Kotlin plugin already puts kotlin-stdlib on the test runtime classpath.
+tasks.register<JavaExec>("runCoreTests") {
+    group = "verification"
+    description = "Compiles and runs the core hand-rolled test suite (AllTests.main)."
+    dependsOn(tasks.named("testClasses"))
+    mainClass.set("com.dashboard.core.tests.AllTestsKt")
+    classpath = sourceSets["test"].runtimeClasspath
+}
+
+tasks.named("check") { dependsOn("runCoreTests") }
