@@ -10,3 +10,4 @@ local.properties
 
 # Claude Code worktrees / local agent state
 .claude/
+.DS_Store
