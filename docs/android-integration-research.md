@@ -68,12 +68,14 @@ announcement text*, and this project is now built around it.**
   structured checkpoint; `NavigationManager.onVehicleSpeedTick` smoothly counts the distance down
   between checkpoints using the vehicle's own live speed, so the watch shows a continuous
   countdown rather than discrete jumps.
-- ⚠️ **Play Store policy, not a blocker**: using `AccessibilityService` for a non-accessibility
-  purpose requires a Play Console declaration, clear in-app disclosure (see `phone-app`'s
-  `MainActivity`), and a narrow, justified scope — which is why the service is filtered to only
-  `com.google.android.apps.maps`/`com.waze` and `canRetrieveWindowContent="false"`. Enforcement
-  has been tightening and more changes are scheduled through 2027 — worth re-checking current
-  policy before shipping, not just at build time.
+- ⚠️ **Play Store policy — and this build is not going to the Play Store.** Per the project
+  decision (see `PLAN.md`), the watch app is hardcoded/preinstalled on the in-car device and the
+  phone companion is sideloaded, so the Play Console AccessibilityService declaration does not
+  apply. The scope is still deliberately narrow: `android:packageNames` is limited to
+  `com.google.android.apps.maps,com.waze`, and `MainActivity` shows a plain-language disclosure
+  before the grant. Note `canRetrieveWindowContent="true"` — it is **required** for
+  `rootInActiveWindow` to return anything (an earlier draft of this doc said `false`, which was
+  wrong). If this ever did go to the Play Store, that declaration + review would be needed.
 - ❓ **Still needs real-device verification**: whether Google Maps/Waze actually emit the
   announcement text this was built to expect is unconfirmed — `phone-app/README.md` has the exact
   test to run (install on a real phone, start real navigation, watch logcat). This is the single

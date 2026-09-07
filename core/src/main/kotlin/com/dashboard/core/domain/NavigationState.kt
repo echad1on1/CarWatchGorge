@@ -1,7 +1,14 @@
 package com.dashboard.core.domain
 
-/** Turn-by-turn direction glyph the Maps panel should render. Kept coarse — the phone owns real routing. */
-enum class Direction { STRAIGHT, TURN_LEFT, TURN_RIGHT, KEEP_LEFT, KEEP_RIGHT, ROUNDABOUT, ARRIVED, UNKNOWN }
+/**
+ * Turn-by-turn direction glyph the Maps panel should render. Kept coarse — the phone owns real
+ * routing. Slight and sharp turns collapse into the KEEP and TURN values; ramp and off-ramp
+ * maneuvers map to EXIT_LEFT or EXIT_RIGHT.
+ */
+enum class Direction {
+    STRAIGHT, TURN_LEFT, TURN_RIGHT, KEEP_LEFT, KEEP_RIGHT,
+    U_TURN, MERGE, EXIT_LEFT, EXIT_RIGHT, ROUNDABOUT, ARRIVED, UNKNOWN
+}
 
 /**
  * What the Maps panel shows. `active = false` means "no navigation running on the phone" —
