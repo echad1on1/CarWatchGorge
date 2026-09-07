@@ -1,6 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- Camera-proximity (Blizzer) — GPS + a foreground service so it keeps working while the
+         phone is in a pocket / the screen is off during a drive. -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
     <application
         android:allowBackup="false"
         android:label="Dashboard Companion"
@@ -48,6 +57,12 @@
                 <data android:scheme="wear" android:host="*" android:pathPrefix="/automotive-dashboard" />
             </intent-filter>
         </service>
+
+        <!-- Speed-camera proximity watcher (Blizzer feed). -->
+        <service
+            android:name=".blizzer.CameraProximityService"
+            android:exported="false"
+            android:foregroundServiceType="location" />
 
     </application>
 </manifest>

@@ -15,9 +15,9 @@ Three Gradle modules:
   (`BluetoothProvider`, `VehicleDataProvider`, `PhoneCommunication`, etc.), managers
   (`ConnectionManager`, `NavigationManager`, `MediaManager`, `BlizzerManager`, `PowerManager`,
   `SettingsManager`), the wire protocol (`ProtocolMessage`/`MessageCodec`), and
-  `NavigationAnnouncementParser`, `ObdPidParser`, `MediaSessionSelection`. **20 test suites /
-  119 assertions (verified 2026-09-07, all passing), run via `./tools/run_tests.sh` or
-  `./gradlew :core:runCoreTests`.**
+  `NavigationAnnouncementParser`, `ObdPidParser`, `MediaSessionSelection`, `CameraProximity`.
+  **21 test suites / 126 assertions (verified 2026-09-07, all passing), run via
+  `./tools/run_tests.sh` or `./gradlew :core:runCoreTests`.**
 - **`wearos-app/`** — the real Wear OS Compose app (watch side).
 - **`phone-app/`** — the real Android companion app (phone side), currently just
   `NavigationAccessibilityService` + a disclosure `MainActivity`.
@@ -35,7 +35,7 @@ Layer transport.
 | **Car** | OBD-II/CAN data from a Bluetooth device wired to the vehicle console | 🟡 Pure `ObdPidParser` done + tested (8 tests). `BleObdVehicleDataProvider` + `ObdGattProfile` + `VehicleProviderFactory` written and **build-verified** (mock in debug, BLE in release). Watch connects *directly* to the vehicle's BLE ELM327 adapter. **Needs a real dongle** to verify scan/GATT/AT-init. |
 | **Maps** | Turn info from phone, transported to watch | 🟡 Parser hardened 2026-09-07 (U-turn/merge/ramp/slight/sharp, imperial + `1,5` decimals, more Croatian — 20 tests). Transport **build-verified**; Data Layer bugs fixed (Phase B). `Direction` enum gained `U_TURN/MERGE/EXIT_LEFT/EXIT_RIGHT`. Decision: AccessibilityService kept. Real-device announcement capture still unconfirmed (the one open spike). |
 | **Music** | Song info + visual audio representation, playback controls | 🟡 Real pipe **built + build-verified 2026-09-07**: phone `MediaNotificationListenerService` → `MediaState` over Data Layer → `MediaManager` (real, not mock); watch `⏮⏯⏭` → `MediaCommandMessage` → phone `WearInboundListenerService` → `transportControls`. Decorative waveform + progress bar on `MusicScreen`. Session selection is pure/tested (`MediaSessionSelection`). Needs a device + notification-access grant to confirm. |
-| **Blizzer** | Camera/hazard alerts, blinking overlay over all panels, color-coded by distance | 🟡 Overlay + auto-dismiss done, **5-tier** colours (2000/1000/500/200/100 m, blue→green→amber→red via `BlizzerProximity`), no sound. Real GPS + camera-POI feed (phone side) = Phase 4, not started. |
+| **Blizzer** | Camera/hazard alerts, blinking overlay over all panels, color-coded by distance | 🟡 Overlay + auto-dismiss + **5-tier** colours done. Real feed **built + build-verified 2026-09-07**: pure `CameraProximity` (haversine, nearest, threshold+hysteresis) + phone `CameraProximityService` (foreground GPS → `BlizzerTrigger` over Data Layer) + `SpeedCameraRepository` (OSM GeoJSON asset). No sound. Needs a device + a real ODbL camera dataset (bundled sample is 6 points). |
 
 ## Phase tracker
 
@@ -112,6 +112,23 @@ Layer transport.
   off (`PLAN.md` decision).
 - **Needs a device**: notification-access grant + a real Spotify/YT-Music session, and the
   watch→phone command round trip.
+
+### Phase E — Blizzer camera-proximity feed — 🟡 BUILD-VERIFIED, device + dataset pending
+- `core/blizzer/CameraProximity` — pure haversine, `nearest` (bounding-box prefilter),
+  `crossedThreshold` (tightest newly-entered band; 15 m hysteresis), `toBlizzerEvent` /
+  `clearedEvent`. 7 tests, no hardware.
+- `phone-app/blizzer/SpeedCameraRepository` — loads `assets/speed_cameras.geojson` (OSM
+  `FeatureCollection` shape; a 6-point Zagreb **sample** is bundled — replace with a real
+  ODbL extract, keep attribution).
+- `phone-app/blizzer/CameraProximityService` — foreground `location` service,
+  FusedLocation @1 Hz → `nearest` → `crossedThreshold` → `BlizzerTrigger` over the Data
+  Layer; sends a cleared event on leaving range or switching to a nearer camera.
+- `phone-app/MainActivity` — start/stop buttons + fine + background-location grant flow.
+- Manifest: `ACCESS_FINE/COARSE/BACKGROUND_LOCATION`, `FOREGROUND_SERVICE(_LOCATION)`,
+  `POST_NOTIFICATIONS`; the service with `foregroundServiceType="location"`.
+- `wearos-app`: `BlizzerManager` now on `navPhoneCommunication` (real). `MockPhoneCommunication`
+  on the watch is now used **only** by `DevControlPanel`.
+- No sound (decision #8). **Needs a device + a real camera dataset** to verify on the road.
 
 ## How to verify before changing anything
 

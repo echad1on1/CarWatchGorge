@@ -18,6 +18,7 @@ fun main() {
         blizzerManagerSuite(),
         blizzerAutoDismissSuite(),
         blizzerProximitySuite(),
+        cameraProximitySuite(),
         blizzerAudioManagerSuite(),
         settingsManagerSuite(),
         powerManagerSuite(),
