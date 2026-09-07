@@ -50,7 +50,11 @@ class MainActivity : ComponentActivity() {
         val connectionManager = ConnectionManager(nfcProvider, dataLayerProvider)
         val navigationManager = NavigationManager(navPhoneCommunication)
         val navigationAudioManager = NavigationAudioManager(navigationManager, audioOutput)
-        val mediaManager = MediaManager(mockPhoneCommunication)
+        // Real now-playing + transport controls over the Data Layer (Phase 1). The phone's
+        // MediaNotificationListenerService sends MediaUpdate frames; MediaManager.play()/etc.
+        // send MediaCommandMessage frames the phone's WearInboundListenerService acts on.
+        val mediaManager = MediaManager(navPhoneCommunication)
+        // Blizzer still on the mock until its real GPS/camera-POI feed lands (Phase 4).
         val blizzerManager = BlizzerManager(mockPhoneCommunication)
         val settingsManager = SettingsManager(settingsStore)
 

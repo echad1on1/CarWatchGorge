@@ -13,6 +13,7 @@ fun main() {
         navigationCountdownSuite(),
         navigationAudioManagerSuite(),
         mediaManagerSuite(),
+        mediaSessionSelectionSuite(),
         blizzerManagerSuite(),
         blizzerAutoDismissSuite(),
         blizzerProximitySuite(),
