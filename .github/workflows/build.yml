@@ -36,4 +36,8 @@ jobs:
           java-version: "21"
       - uses: android-actions/setup-android@v3
       - uses: gradle/actions/setup-gradle@v4
-      - run: ./gradlew :wearos-app:assembleDebug :phone-app:assembleDebug lint --no-daemon
+      - run: >
+          ./gradlew
+          :wearos-app:assembleDebug :wearos-app:assembleRelease
+          :phone-app:assembleDebug :phone-app:assembleRelease
+          lint --no-daemon
